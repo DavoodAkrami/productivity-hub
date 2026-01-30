@@ -4,8 +4,6 @@ import BookMarkCard from "@/components/BookMarkdCard";
 import { bookmarkProp } from "@/components/BookMarkdCard";
 import Button from "@/components/Buttons";
 import Modal from "@/components/Modal";
-import Input from "@/components/Input";
-import { stringify } from "querystring";
 
 
 const App = () => {

@@ -8,7 +8,6 @@ import clsx from "clsx";
 import { BiCopy } from "react-icons/bi";
 import { BsCircleFill } from "react-icons/bs";
 import { FiCheck } from "react-icons/fi";
-import { FunctionDefinition } from "openai/resources";
 
 
 interface MessageType {

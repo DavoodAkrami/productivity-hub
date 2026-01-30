@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import clsx from "clsx";
 import SidebarProvider from "@/providers/sidebarProvider";
 import SideBar from "@/components/SideBar";
 import { sideBarOption } from "@/components/SideBar";
