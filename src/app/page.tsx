@@ -109,7 +109,7 @@ const App = () => {
             link: bookMarkForm.link,
         };
     
-        let existing: bookmarkProp[] = [...bookmarks];
+        const existing: bookmarkProp[] = [...(bookmarks ?? [])];
         console.log(bookMarkForm.title)
         const indexToUpdate = existing.findIndex(bm => bm.id === bookMarkForm.id);
     
