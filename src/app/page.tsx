@@ -80,7 +80,7 @@ const App = () => {
 
 
     const handleDelete = (id: number | null) => {
-        let existing: bookmarkProp[] = [...bookmarks];
+        const existing: bookmarkProp[] = [...(bookmarks ?? [])];
         const indexTodelete = existing.findIndex(bm => bm.id === id);
         
         if(indexTodelete !== -1){
