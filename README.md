@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Productivity Hub
 
-## Getting Started
+A modern, feature-rich productivity application built with Next.js that helps you manage bookmarks, tasks, and interact with AI assistance.
 
-First, run the development server:
+🌐 **Live Website:** [productivity-hub.vercel.app](https://productivity-hub.vercel.app)
+
+## Features
+
+### 📚 Bookmarks Manager
+- Add, edit, and delete bookmarks
+- Store bookmarks locally in your browser
+- Clean, card-based interface for easy browsing
+
+### ✅ Todo List
+- Create tasks with titles, descriptions, priorities, labels, and due dates
+- Custom calendar date picker with year/month navigation
+- Filter tasks by priority, label, or date (today, this week, this month, past)
+- Sort tasks by priority or date
+- Mark tasks as completed with visual line-through styling
+- Toggle visibility of completed tasks
+- All data persisted in browser localStorage
+
+### 🤖 AI Assistant
+- Interactive chat interface powered by OpenAI
+- Function calling capabilities
+
+## Technologies Used
+
+### Core Framework
+- **Next.js 15.5.2** - React framework for production
+- **React 19.1.0** - UI library
+- **TypeScript 5** - Type-safe JavaScript
+
+### Styling & UI
+- **Tailwind CSS 4** - Utility-first CSS framework
+- **Motion (Framer Motion) 12.23.12** - Animation library
+- **React Icons 5.5.0** - Icon library
+- **clsx 2.1.1** - Conditional className utility
+
+### Development Tools
+- **ESLint 9** - Code linting
+- **PostCSS** - CSS processing
+
+## Installation & Setup
+
+### Prerequisites
+- Node.js 18+ installed on your system
+- npm, yarn, pnpm, or bun package manager
+
+### Download & Install
+
+1. **Clone or download the repository**
+   ```bash
+   git clone <https://github.com/DavoodAkrami/productivity-hub.git>
+   cd productivity-hub
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or
+   yarn install
+   # or
+   pnpm install
+   ```
+
+3. **Set up environment variables** (if using AI features)
+   
+   Create a `.env.local` file in the root directory:
+   ```env
+   OPENAI_API_KEY=your_openai_api_key_here
+   OPEN_AI_BASE_URL:your_openai_base_url
+   ```
+
+4. **Run the development server**
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   # or
+   pnpm dev
+   ```
+
+5. **Open your browser**
+   
+   Navigate to [http://localhost:3000](http://localhost:3000) to see the application.
+
+### Build for Production
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run build
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Project Structure
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/
+│   ├── AI/              # AI chat interface
+│   ├── todolist/        # Todo list management
+│   ├── page.tsx         # Bookmarks page (home)
+│   └── layout.tsx       # Root layout
+├── components/          # Reusable UI components
+├── configs/            # Configuration files
+├── providers/         # React context providers
+└── utilities/         # Helper functions
+```

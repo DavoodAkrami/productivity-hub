@@ -2,8 +2,8 @@ import OpenAI from "openai";
 
 
 const openai = new OpenAI({
-    apiKey: "hi",
-    baseURL: "http://localhost:1234/v1",
+    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: process.env.OPEN_AI_BASE_URL,
     dangerouslyAllowBrowser: true,
 })
 
