@@ -25,7 +25,7 @@ const BookMarkCard: React.FC<bookmarkProp> = ({id, title, description, link, han
     return (
         <div
             className={clsx(
-                "bg-[var(--bg-control)]/60 backdrop-blur-xl p-5 rounded-3xl overflow-hidden shadow-xl",
+                "bg-[var(--bg-control)]/60 backdrop-blur-xl p-5 rounded-3xl overflow-hidden",
             )}
         >
             <Button 

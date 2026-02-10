@@ -329,7 +329,7 @@ const ToDoList = () => {
     }
 
     return (
-        <div className="h-screen relative select-none pt-[1.5vh]">
+        <div className="h-screen relative select-none pt-[2.5vh]">
             <div 
                 className=" flex gap-4 w-[45%] mx-auto relative mb-[1.5vh]"
             >
@@ -380,7 +380,7 @@ const ToDoList = () => {
                                 initial={{ opacity: 0, scale: 0, y: -70}}
                                 animate={{ opacity: 1, scale: 1, y: 0}}
                                 exit={{ opacity: 0, scale: 0, y: -70 }}
-                                className="z-10 absolute left-0 top-12 p-2 bg-[var(--fill-primary)]/50 backdrop-blur-xl rounded-xl w-[35%] flex flex-col gap-2"
+                                className="z-10 absolute left-0 top-14 p-2 bg-[var(--fill-primary)]/50 backdrop-blur-xl rounded-xl w-[35%] flex flex-col gap-2"
                             >
                                 {isDataModalOpen === "sort" ?
                                     sortKinds.map((sort, index) => (
