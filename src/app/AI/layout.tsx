@@ -3,7 +3,7 @@ import { sideBarOption } from "@/components/SideBar";
 
 const options: sideBarOption[] = [
     {
-        title: "ew chat",
+        title: "chat",
         path: "/AI",
 
     }

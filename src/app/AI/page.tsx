@@ -78,12 +78,6 @@ const Ai = () => {
                 content: trimmedMessage,
             });
 
-            const response = await openai.chat.completions.create({
-                model: "meta-llama-3.1-8b-instruct",
-                messages: shortTermMemory,
-            });
-
-            const botMessage = response.choices[0].message.content || "";
             const assistantId = Math.random();
 
             setChatHistory(prev => [
@@ -95,24 +89,24 @@ const Ai = () => {
                 },
             ]);
 
-            let index = 0;
-            const typingSpeedMs = 10;
+            const stream = await openai.chat.completions.create({
+                model: "gpt-5-nano",
+                messages: shortTermMemory,
+                stream: true,
+            });
 
-            const interval = setInterval(() => {
-                index++;
+            for await (const chunk of stream) {
+                const delta = chunk.choices[0]?.delta?.content || "";
+                if (!delta) continue;
 
                 setChatHistory(prev =>
                     prev.map(chat =>
                         chat.id === assistantId
-                            ? { ...chat, message: botMessage.slice(0, index) }
+                            ? { ...chat, message: chat.message + delta }
                             : chat
                     )
                 );
-
-                if (index >= botMessage.length) {
-                    clearInterval(interval);
-                }
-            }, typingSpeedMs);
+            }
         } catch (err) {
             console.error(err);
             setError("Failed to send your request. Please try again.");
@@ -122,6 +116,7 @@ const Ai = () => {
     };
 
     useEffect(() => {
+        setChatLoading(true);
         const stored = localStorage.getItem("chatHistory");
         if (stored) {
             const parsed = JSON.parse(stored) as MessageType[];
@@ -130,6 +125,7 @@ const Ai = () => {
                 setIsNewChat(false);
             }
         }
+        setChatLoading(false);
     }, []);
 
     useEffect(() => {
@@ -138,18 +134,6 @@ const Ai = () => {
             setIsNewChat(false);
         }
     }, [chatHistory, isNewChat]);
-
-    useEffect(() => {
-        setTimeout(() => {
-            setChatLoading(false);
-        }, 1000);
-        setTimeout(() => {
-            if (lastChat.current) {
-                lastChat.current.scrollIntoView({ behavior: "smooth", block: "start" });
-            }
-        }, 1100)
-    }, []);
-
 
     useEffect(() => {
         if (lastChat.current) {
@@ -173,7 +157,16 @@ const Ai = () => {
     return (
         <div className="w-full mx-auto flex flex-col h-screen pb-[3vh] pt-[3vh]">
             {chatLoading ? (
-                <div>Loading...</div>
+                <div className="flex flex-1 items-center justify-center">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="relative h-10 w-10">
+                            <span className="absolute inset-0 rounded-full border-4 border-[var(--bg-control)] border-t-[var(--accent-blue)] animate-spin" />
+                        </div>
+                        <p className="text-sm text-gray-400">
+                            Preparing your chat...
+                        </p>
+                    </div>
+                </div>
             ) : (
                 <>
                     <div
