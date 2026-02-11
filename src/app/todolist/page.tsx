@@ -17,6 +17,7 @@ import { HiXMark } from "react-icons/hi2";
 import { FiCheckSquare, FiSquare } from "react-icons/fi";
 import { IoColorPaletteOutline } from "react-icons/io5";
 import Notodolists from "@/components/Notodolists";
+import { undoManager } from "@/lib/undoManager";
 
 
 
@@ -34,6 +35,7 @@ type NotificationState = {
     title: string;
     description: string;
     variant: "default" | "success" | "error";
+    undoId?: number;
     key: number;
 };
 
@@ -69,6 +71,7 @@ const ToDoList = () => {
         title: "",
         description: "",
         variant: "default",
+        undoId: undefined,
         key: 0,
     });
 
@@ -162,6 +165,7 @@ const ToDoList = () => {
     
         const tasks = localStorage.getItem("toDos");
         const parsedTasks: Task[] = tasks ? JSON.parse(tasks) : [];
+        const previousTask = isEditing ? parsedTasks.find((task) => task.id === isEditing) : undefined;
     
         const newTask: Task = {
             ...taskForm,
@@ -182,11 +186,25 @@ const ToDoList = () => {
     
         localStorage.setItem("toDos", JSON.stringify(newTasks));
         settoDos(newTasks);
+        const undoId = undoManager.register(() => {
+            const stored = localStorage.getItem("toDos");
+            const parsed: Task[] = stored ? JSON.parse(stored) : [];
+            if (wasEditing && previousTask) {
+                const updated = parsed.map((task) => task.id === previousTask.id ? previousTask : task);
+                localStorage.setItem("toDos", JSON.stringify(updated));
+                settoDos(updated);
+            } else {
+                const updated = parsed.filter((task) => task.id !== newTask.id);
+                localStorage.setItem("toDos", JSON.stringify(updated));
+                settoDos(updated);
+            }
+        });
         setNotification({
             isOpen: true,
             title: "Task Saved",
             description: wasEditing ? `${newTask.title} updated in tasks.` : `${newTask.title} added to tasks.`,
             variant: "success",
+            undoId,
             key: Date.now(),
         });
     
@@ -204,6 +222,7 @@ const ToDoList = () => {
     const handleDelete = (id: string) => {
         const tasks = localStorage.getItem("toDos");
         const parsedTasks: Task[] = tasks ? JSON.parse(tasks) : []; 
+        const deletedIndex = parsedTasks.findIndex((task: Task) => task.id === id);
         const deletedTask = parsedTasks.find((task: Task) => task.id === id);
     
         const updatedTasks = parsedTasks.filter(
@@ -213,11 +232,21 @@ const ToDoList = () => {
         localStorage.setItem("toDos", JSON.stringify(updatedTasks));
         settoDos(updatedTasks);
         if (deletedTask) {
+            const undoId = undoManager.register(() => {
+                const stored = localStorage.getItem("toDos");
+                const parsed: Task[] = stored ? JSON.parse(stored) : [];
+                if (parsed.some((task) => task.id === deletedTask.id)) return;
+                const next = [...parsed];
+                next.splice(Math.min(deletedIndex, next.length), 0, deletedTask);
+                localStorage.setItem("toDos", JSON.stringify(next));
+                settoDos(next);
+            });
             setNotification({
                 isOpen: true,
                 title: "Task Deleted",
                 description: `${deletedTask.title} task deleted.`,
                 variant: "error",
+                undoId,
                 key: Date.now(),
             });
         }
@@ -237,6 +266,7 @@ const ToDoList = () => {
     const handleToggleComplete = (id: string) => {
         const tasks = localStorage.getItem("toDos");
         const parsedTasks: Task[] = tasks ? JSON.parse(tasks) : [];
+        const targetTask = parsedTasks.find((task) => task.id === id);
 
         let completedTaskTitle = "";
         const updatedTasks = parsedTasks.map((task: Task) => {
@@ -249,11 +279,21 @@ const ToDoList = () => {
         localStorage.setItem("toDos", JSON.stringify(updatedTasks));
         settoDos(updatedTasks);
         if (completedTaskTitle) {
+            const undoId = undoManager.register(() => {
+                const stored = localStorage.getItem("toDos");
+                const parsed: Task[] = stored ? JSON.parse(stored) : [];
+                const next = parsed.map((task) =>
+                    task.id === id ? { ...task, completed: targetTask?.completed ?? false } : task
+                );
+                localStorage.setItem("toDos", JSON.stringify(next));
+                settoDos(next);
+            });
             setNotification({
                 isOpen: true,
                 title: "Task Completed",
                 description: `${completedTaskTitle} completed.`,
                 variant: "success",
+                undoId,
                 key: Date.now(),
             });
         }
@@ -385,6 +425,7 @@ const ToDoList = () => {
                 description={notification.description}
                 variant={notification.variant}
                 isOpen={notification.isOpen}
+                onUndo={notification.undoId ? () => { undoManager.consume(notification.undoId); } : undefined}
                 onClose={() => setNotification((prev) => ({ ...prev, isOpen: false }))}
             />
             <div
@@ -991,6 +1032,7 @@ const NotesBoard: React.FC<{ isActive: boolean }> = ({ isActive }) => {
         title: "",
         description: "",
         variant: "default",
+        undoId: undefined,
         key: 0,
     });
 
@@ -1062,11 +1104,17 @@ const NotesBoard: React.FC<{ isActive: boolean }> = ({ isActive }) => {
             updatedAt: now,
         };
         saveNotes([newNote, ...notes]);
+        const undoId = undoManager.register(() => {
+            const parsed = getStoredNotes();
+            const updated = parsed.filter((note) => note.id !== newNote.id);
+            saveNotes(updated);
+        });
         setNotification({
             isOpen: true,
             title: "Note Added",
             description: `${newNote.title} added to notes.`,
             variant: "success",
+            undoId,
             key: Date.now(),
         });
         clearComposeForm();
@@ -1122,26 +1170,42 @@ const NotesBoard: React.FC<{ isActive: boolean }> = ({ isActive }) => {
                 : note
         );
         saveNotes(updated);
+        const previousNote = selectedNote;
+        const undoId = undoManager.register(() => {
+            const parsed = getStoredNotes();
+            const restored = parsed.map((note) => note.id === previousNote.id ? previousNote : note);
+            saveNotes(restored);
+        });
         setNotification({
             isOpen: true,
             title: "Note Updated",
             description: `${trimmedTitle} updated in notes.`,
             variant: "success",
+            undoId,
             key: Date.now(),
         });
         closeNoteDetail();
     };
 
     const handleDeleteNote = (id: string, closeAfterDelete?: boolean) => {
+        const deletedIndex = notes.findIndex((note) => note.id === id);
         const deletedNote = notes.find((note) => note.id === id);
         const nextNotes = notes.filter((note) => note.id !== id);
         saveNotes(nextNotes);
         if (deletedNote) {
+            const undoId = undoManager.register(() => {
+                const parsed = getStoredNotes();
+                if (parsed.some((note) => note.id === deletedNote.id)) return;
+                const next = [...parsed];
+                next.splice(Math.min(deletedIndex, next.length), 0, deletedNote);
+                saveNotes(next);
+            });
             setNotification({
                 isOpen: true,
                 title: "Note Deleted",
                 description: `${deletedNote.title} note deleted.`,
                 variant: "error",
+                undoId,
                 key: Date.now(),
             });
         }
@@ -1262,6 +1326,7 @@ const NotesBoard: React.FC<{ isActive: boolean }> = ({ isActive }) => {
                 description={notification.description}
                 variant={notification.variant}
                 isOpen={notification.isOpen}
+                onUndo={notification.undoId ? () => { undoManager.consume(notification.undoId); } : undefined}
                 onClose={() => setNotification((prev) => ({ ...prev, isOpen: false }))}
             />
             <div className="flex gap-4 w-[45%] mx-auto relative mb-[1.5vh] items-center">

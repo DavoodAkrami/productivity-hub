@@ -4,7 +4,17 @@ import BookMarkCard from "@/components/BookMarkdCard";
 import { bookmarkProp } from "@/components/BookMarkdCard";
 import Button from "@/components/Buttons";
 import Modal from "@/components/Modal";
+import Notodolists from "@/components/Notodolists";
+import { undoManager } from "@/lib/undoManager";
 
+type NotificationState = {
+    isOpen: boolean;
+    title: string;
+    description: string;
+    variant: "default" | "success" | "error";
+    undoId?: number;
+    key: number;
+};
 
 const App = () => {
     const [loading, setloading] = useState<boolean>(false);
@@ -14,6 +24,14 @@ const App = () => {
     const [isEditing, setIsEditing] = useState<boolean>(false);
     const [isDeleteModalopen, setIsdeleteModalOpen] = useState<boolean>(false);
     const [deleteBookMark, setDeleteBookMark] = useState<string>(""); 
+    const [notification, setNotification] = useState<NotificationState>({
+        isOpen: false,
+        title: "",
+        description: "",
+        variant: "default",
+        undoId: undefined,
+        key: 0,
+    });
 
     const [bookMarkForm, setBookMarkForm] = useState<bookmarkProp>({
         id: null,
@@ -73,6 +91,21 @@ const App = () => {
         const next = [...existing, newBookmark];
         localStorage.setItem('bookmarks', JSON.stringify(next));
         setBookmarks(next);
+        const undoId = undoManager.register(() => {
+            const stored = localStorage.getItem('bookmarks');
+            const parsed: bookmarkProp[] = stored ? JSON.parse(stored) : [];
+            const updated = parsed.filter((bm) => bm.id !== newBookmark.id);
+            localStorage.setItem('bookmarks', JSON.stringify(updated));
+            setBookmarks(updated);
+        });
+        setNotification({
+            isOpen: true,
+            title: "Bookmark Added",
+            description: `${newBookmark.title} added to bookmarks.`,
+            variant: "success",
+            undoId,
+            key: Date.now(),
+        });
         setIsModalOpen(false);
         setBookMarkForm({id: null , title: "", description: "", link: "" });
     }
@@ -81,13 +114,35 @@ const App = () => {
 
     const handleDelete = (id: number | null) => {
         const existing: bookmarkProp[] = [...(bookmarks ?? [])];
+        const toDelete = existing.find(bm => bm.id === id);
         const indexTodelete = existing.findIndex(bm => bm.id === id);
         
         if(indexTodelete !== -1){
+            const deletedBookmark = existing[indexTodelete];
+            const deletedIndex = indexTodelete;
             existing.splice(indexTodelete, 1);
             localStorage.setItem('bookmarks', JSON.stringify(existing));
             setBookmarks(existing); 
             setIsdeleteModalOpen(false);
+            if (toDelete) {
+                const undoId = undoManager.register(() => {
+                    const stored = localStorage.getItem('bookmarks');
+                    const parsed: bookmarkProp[] = stored ? JSON.parse(stored) : [];
+                    if (parsed.some((bm) => bm.id === deletedBookmark.id)) return;
+                    const next = [...parsed];
+                    next.splice(Math.min(deletedIndex, next.length), 0, deletedBookmark);
+                    localStorage.setItem('bookmarks', JSON.stringify(next));
+                    setBookmarks(next);
+                });
+                setNotification({
+                    isOpen: true,
+                    title: "Bookmark Deleted",
+                    description: `${toDelete.title} bookmark deleted.`,
+                    variant: "error",
+                    undoId,
+                    key: Date.now(),
+                });
+            }
         } else {
             console.log("Bookmark not found");
         }
@@ -114,9 +169,28 @@ const App = () => {
         const indexToUpdate = existing.findIndex(bm => bm.id === bookMarkForm.id);
     
         if (indexToUpdate !== -1) {
+            const previousBookmark = existing[indexToUpdate];
             existing[indexToUpdate] = updatedBookmark;
             localStorage.setItem('bookmarks', JSON.stringify(existing));
             setBookmarks(existing);
+            const undoId = undoManager.register(() => {
+                const stored = localStorage.getItem('bookmarks');
+                const parsed: bookmarkProp[] = stored ? JSON.parse(stored) : [];
+                const index = parsed.findIndex((bm) => bm.id === previousBookmark.id);
+                if (index === -1) return;
+                const next = [...parsed];
+                next[index] = previousBookmark;
+                localStorage.setItem('bookmarks', JSON.stringify(next));
+                setBookmarks(next);
+            });
+            setNotification({
+                isOpen: true,
+                title: "Bookmark Updated",
+                description: `${updatedBookmark.title} updated in bookmarks.`,
+                variant: "success",
+                undoId,
+                key: Date.now(),
+            });
             setIsModalOpen(false);
             setBookMarkForm({ id: null, title: "", description: "", link: "" });
             setIsEditing(false);
@@ -145,6 +219,15 @@ const App = () => {
         <div 
             className="py-[5vw] px-[10vw] max-w-[80%] mx-auto"
         >
+            <Notodolists
+                key={notification.key}
+                title={notification.title}
+                description={notification.description}
+                variant={notification.variant}
+                isOpen={notification.isOpen}
+                onUndo={notification.undoId ? () => { undoManager.consume(notification.undoId); } : undefined}
+                onClose={() => setNotification((prev) => ({ ...prev, isOpen: false }))}
+            />
             <div 
                 className="flex justify-between items-center w-full"
             >

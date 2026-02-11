@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import clsx from "clsx";
 import { HiXMark } from "react-icons/hi2";
+import { FiRotateCcw } from "react-icons/fi";
 
 type NotodolistsVariant = "default" | "success" | "error";
 
@@ -13,6 +14,8 @@ type NotodolistsProps = {
     isOpen: boolean;
     variant?: NotodolistsVariant;
     durationMs?: number;
+    onUndo?: () => void;
+    undoLabel?: string;
     onClose: () => void;
 };
 
@@ -22,6 +25,8 @@ const Notodolists: React.FC<NotodolistsProps> = ({
     isOpen,
     variant = "default",
     durationMs = 3500,
+    onUndo,
+    undoLabel = "Undo",
     onClose,
 }) => {
     const [visible, setVisible] = useState<boolean>(false);
@@ -77,6 +82,22 @@ const Notodolists: React.FC<NotodolistsProps> = ({
                         <p className="mt-2 text-center text-sm opacity-90 break-words">
                             {description}
                         </p>
+                        {onUndo &&
+                            <div className="mt-3 flex justify-center">
+                                <button
+                                    type="button"
+                                    className="cursor-pointer text-sm font-semibold px-3 py-1 rounded-full border border-current hover:bg-black/10 inline-flex items-center gap-1.5"
+                                    onClick={() => {
+                                        onUndo();
+                                        setVisible(false);
+                                        onClose();
+                                    }}
+                                >
+                                    <FiRotateCcw className="text-sm" />
+                                    {undoLabel}
+                                </button>
+                            </div>
+                        }
                     </div>
                 </motion.div>
             )}
