@@ -63,7 +63,7 @@ const Notodolists: React.FC<NotodolistsProps> = ({
                     transition={{ duration: 0.28, ease: "easeOut" }}
                     className="fixed top-4 left-1/2 -translate-x-1/2 z-[250] w-[92%] max-w-xl"
                 >
-                    <div className={clsx("relative rounded-3xl border-2 shadow-2xl backdrop-blur-md px-5 py-4", toneClass)}>
+                    <div className={clsx("relative rounded-4xl border-2 shadow-2xl backdrop-blur-md px-5 py-4", toneClass)}>
                         <button
                             type="button"
                             className="absolute right-3 top-3 p-1 rounded-full hover:bg-black/10 cursor-pointer"

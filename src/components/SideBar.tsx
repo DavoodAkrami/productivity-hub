@@ -2,7 +2,6 @@
 import React, { useState } from "react";
 import { TbLayoutSidebarLeftExpand, TbLayoutSidebarRightExpand } from "react-icons/tb";
 import { motion } from "motion/react";
-import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { usePathname } from "next/navigation";
 import { IoMenu } from "react-icons/io5";
@@ -27,12 +26,16 @@ export interface sideBarProp {
 const SideBar: React.FC<sideBarProp> = ({ options, classname, type="normal" }) => {
     const [isSideBarOpen, setIsSideBarOpen] = useState<boolean>(false);
     const pathname = usePathname();
-    const router = useRouter();
 
     const handleNewChat = () => {
         localStorage.removeItem("chatHistory")
         window.location.reload();
     }
+
+    const isOptionActive = (path: string) => {
+        if (path === "/") return pathname === "/";
+        return pathname === path || pathname.startsWith(`${path}/`);
+    };
 
 
     return (
@@ -41,7 +44,7 @@ const SideBar: React.FC<sideBarProp> = ({ options, classname, type="normal" }) =
             animate={{ width: isSideBarOpen ? '15vw' : '70px' }}
             transition={{ duration: 0.2 }}
             className={clsx(
-                "bg-[var(--bg-control)]/50 backdrop-blur-xl h-screen flex flex-col relative box-border flex-none min-w-[70px] max-w-[15vw] p-2",
+                "bg-[var(--bg-control)]/45 backdrop-blur-2xl h-[calc(100vh-1rem)] my-2 ml-2 rounded-3xl flex flex-col relative box-border flex-none min-w-[70px] max-w-[15vw] p-2.5 border border-[var(--border-separator)]/45 shadow-[0_10px_36px_rgba(0,0,0,0.12)]",
                 !isSideBarOpen && "items-center",
                 classname
             )}
@@ -54,7 +57,7 @@ const SideBar: React.FC<sideBarProp> = ({ options, classname, type="normal" }) =
                     variant="filled"
                     htmlType="button"
                     kind="button"
-                    classname="text-[1.4rem] hover:bg-[var(--fill-primary)] cursor-pointer p-3 rounded-xl transition-all duration-200 flex gap-[1rem] items-center"
+                    classname="text-[1.4rem] hover:bg-[var(--fill-primary)] cursor-pointer p-3 rounded-2xl transition-all duration-200 flex gap-[1rem] items-center"
                     onClick={handleNewChat}
                 >
                     <FaRobot className="text-2xl text-[var(--accent-blue)]"/>
@@ -64,27 +67,27 @@ const SideBar: React.FC<sideBarProp> = ({ options, classname, type="normal" }) =
                         </span>
                     }
                 </Button> : 
-                <h2 className="flex gap-[1rem] items-center p-3 text-center mt-1">
+                <h2 className="flex gap-[1rem] items-center p-3 text-center mt-1 rounded-2xl bg-[var(--fill-primary)]/35 w-full justify-center">
                     {!isSideBarOpen && 
                         <IoMenu className="text-[2rem] text-[var(--accent-blue)]" />
                     }
                     {isSideBarOpen &&
-                        <span className="text-[2rem] font-extrabold text-center">
+                        <span className="text-[1.8rem] font-extrabold text-center">
                             Menu
                         </span>
                     }
                 </h2>
             }
-            <div className="w-[90%] mx-auto my-2 border-t border-[var(--border-separator)]" />
-            <ul className="flex flex-col gap-1">
+            <div className="w-[92%] mx-auto my-3 border-t border-[var(--border-separator)]/70" />
+            <ul className="flex flex-col gap-1.5">
                 {options.map((option, index) => (
                     <li
                         key={index}
                         onClick={() => { window.location.href = option.path; }}
                         className={clsx(
-                            "text-[1.4rem] hover:bg-[var(--fill-primary)] cursor-pointer p-3 rounded-xl transition-all duration-200 flex gap-[1rem] items-center",
+                            "text-[1.3rem] hover:bg-[var(--fill-primary)] cursor-pointer p-3 rounded-2xl transition-all duration-200 flex gap-[1rem] items-center border border-transparent",
                             isSideBarOpen && "",
-                            type !== "AI" && pathname === option.path && "bg-[var(--fill-secondary)]/80"
+                            type !== "AI" && isOptionActive(option.path) && "bg-[var(--fill-secondary)]/80 border-[var(--accent-blue)]/25 shadow-[0_4px_14px_rgba(0,122,255,0.12)]"
                         )}
                     >
                         <span className="text-[var(--accent-blue)] shrink-0">
@@ -100,21 +103,21 @@ const SideBar: React.FC<sideBarProp> = ({ options, classname, type="normal" }) =
             </ul>
             <div
                 className={clsx(
-                    "absolute bottom-1 flex flex-col justify-center items-center",
+                    "absolute bottom-2 flex flex-col justify-center items-center",
                     isSideBarOpen && 'right-2'
                 )}
                 
             >
                 {isSideBarOpen ?
                     <button
-                        className="text-[var(--accent-blue)] text-[2.2rem] p-2 rounded-xl hover:bg-[var(--fill-primary)] cursor-pointer transition-all duration-200"
+                        className="text-[var(--accent-blue)] text-[2.1rem] p-2 rounded-2xl hover:bg-[var(--fill-primary)] cursor-pointer transition-all duration-200"
                         onClick={() => setIsSideBarOpen(!isSideBarOpen)}
                     >
                         <TbLayoutSidebarLeftExpand  />
                     </button>
                     :
                     <button
-                        className="text-[var(--accent-blue)] text-[2.2rem] p-2 rounded-xl hover:bg-[var(--fill-primary)] cursor-pointer transition-all duration-200"
+                        className="text-[var(--accent-blue)] text-[2.1rem] p-2 rounded-2xl hover:bg-[var(--fill-primary)] cursor-pointer transition-all duration-200"
                         onClick={() => setIsSideBarOpen(!isSideBarOpen)}
                     >
                         <TbLayoutSidebarRightExpand />

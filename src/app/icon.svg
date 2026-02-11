@@ -1,0 +1,26 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+  <rect x="8" y="8" width="240" height="240" rx="56" stroke="rgba(255,255,255,0.28)" stroke-width="4"/>
+
+  <path d="M74 62H146C159.255 62 170 72.7452 170 86V194L122 165L74 194V62Z" fill="url(#book)"/>
+  <path d="M170 86V194L122 165L74 194V62" stroke="rgba(255,255,255,0.3)" stroke-width="3"/>
+
+  <circle cx="176" cy="176" r="42" fill="url(#accent)"/>
+  <path d="M158 176L172 190L197 163" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <defs>
+    <linearGradient id="bg" x1="32" y1="24" x2="226" y2="240" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#1E3A8A"/>
+    </linearGradient>
+    <linearGradient id="book" x1="74" y1="62" x2="170" y2="194" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DDE7FF"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="138" y1="138" x2="214" y2="214" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22C55E"/>
+      <stop offset="1" stop-color="#16A34A"/>
+    </linearGradient>
+  </defs>
+</svg>
+
