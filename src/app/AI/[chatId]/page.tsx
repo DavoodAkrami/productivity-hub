@@ -1,7 +1,7 @@
 import AIWorkspace from "@/components/AIWorkspace";
 
-const AIChatPage = ({ params }: { params: { chatId: string } }) => {
-    const { chatId } = params;
+const AIChatPage = async ({ params }: { params: Promise<{ chatId: string }> }) => {
+    const { chatId } = await params;
     return <AIWorkspace routeChatId={chatId} />;
 };
 
