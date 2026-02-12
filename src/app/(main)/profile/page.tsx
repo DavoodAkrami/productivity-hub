@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AnimatePresence, motion } from "motion/react";
 import Modal from "@/components/Modal";
@@ -25,7 +25,6 @@ const ProfilePage = () => {
     const FEEDBACK_CACHE_VERSION = "v2";
     const dispatch = useAppDispatch();
     const router = useRouter();
-    const searchParams = useSearchParams();
     const [activeTab, setActiveTab] = useState<ProfileTab>("account");
     const [analyticsRange, setAnalyticsRange] = useState<AnalyticsRange>("last7");
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState<boolean>(false);
@@ -167,7 +166,8 @@ const ProfilePage = () => {
     ];
 
     useEffect(() => {
-        const rawTab = searchParams.get("tab");
+        if (typeof window === "undefined") return;
+        const rawTab = new URLSearchParams(window.location.search).get("tab");
         if (!rawTab) return;
 
         if (rawTab === "account" || rawTab === "insights") {
@@ -178,7 +178,7 @@ const ProfilePage = () => {
         if (rawTab === "admin" && (auth.profile?.role === "admin" || hasAdminAccess)) {
             setActiveTab("admin");
         }
-    }, [searchParams, auth.profile?.role, hasAdminAccess]);
+    }, [auth.profile?.role, hasAdminAccess]);
 
     const loadAdminUsers = useCallback(async (query = "") => {
         if (!auth.session?.access_token) return;
