@@ -1,5 +1,6 @@
 "use client"
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import ToDoCard, { Task, Priority } from "@/components/ToDoCard";
 import Calendar from "@/components/Calendar";
 import { motion, AnimatePresence } from "motion/react";
@@ -2014,6 +2015,7 @@ const NotesBoard: React.FC<{ isActive: boolean }> = ({ isActive }) => {
 
 const ToDoNotesWorkspace: React.FC = () => {
     const [activeView, setActiveView] = useState<"todo" | "notes">("todo");
+    const router = useRouter();
 
     return (
         <div className="relative">
@@ -2043,6 +2045,13 @@ const ToDoNotesWorkspace: React.FC = () => {
                     Notes
                 </button>
             </div>
+            <button
+                type="button"
+                onClick={() => router.push("/profile?tab=insights")}
+                className="fixed right-5 bottom-5 z-50 rounded-full border border-[var(--fill-primary)] bg-[var(--bg-control)]/90 px-3 py-1.5 text-xs font-semibold cursor-pointer hover:bg-[var(--fill-primary)] backdrop-blur-md"
+            >
+                Insights
+            </button>
 
             <AnimatePresence mode="wait">
                 {activeView === "todo" ? (

@@ -175,16 +175,54 @@ export const replaceLabelsForCurrentUser = async (labels: Omit<LabelRow, "id">[]
     const userId = await getUserId();
     if (!userId) return;
     const supabase = getSupabaseBrowserClient();
-    const { error: deleteError } = await supabase.from("labels").delete().eq("user_id", userId);
-    if (deleteError) throw new Error(deleteError.message);
-    if (labels.length === 0) return;
-    const payload = labels.map((label) => ({
+
+    // Normalize + dedupe to avoid unique collisions on (user_id, value).
+    const byValue = new Map<string, { name: string; value: string }>();
+    for (const label of labels) {
+        const value = String(label.value ?? "").trim();
+        if (!value) continue;
+        if (!byValue.has(value)) {
+            byValue.set(value, {
+                name: String(label.name ?? value).trim() || value,
+                value,
+            });
+        }
+    }
+
+    const normalized = Array.from(byValue.values());
+
+    if (normalized.length === 0) {
+        const { error: clearError } = await supabase.from("labels").delete().eq("user_id", userId);
+        if (clearError) throw new Error(clearError.message);
+        return;
+    }
+
+    const keptValues = new Set(normalized.map((label) => label.value));
+    const { data: existingRows, error: existingError } = await supabase
+        .from("labels")
+        .select("id,value")
+        .eq("user_id", userId);
+    if (existingError) throw new Error(existingError.message);
+
+    const staleIds = (existingRows ?? [])
+        .filter((row) => !keptValues.has(String(row.value ?? "")))
+        .map((row) => row.id)
+        .filter(Boolean);
+
+    if (staleIds.length > 0) {
+        const { error: deleteStaleError } = await supabase.from("labels").delete().in("id", staleIds);
+        if (deleteStaleError) throw new Error(deleteStaleError.message);
+    }
+
+    const payload = normalized.map((label) => ({
         user_id: userId,
         name: label.name,
         value: label.value,
     }));
-    const { error: insertError } = await supabase.from("labels").insert(payload);
-    if (insertError) throw new Error(insertError.message);
+    const { error: upsertError } = await supabase
+        .from("labels")
+        .upsert(payload, { onConflict: "user_id,value" });
+    if (upsertError) throw new Error(upsertError.message);
 };
 
 export const fetchAIChatsForCurrentUser = async () => {

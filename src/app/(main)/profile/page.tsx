@@ -2,14 +2,15 @@
 
 import clsx from "clsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AnimatePresence, motion } from "motion/react";
 import Modal from "@/components/Modal";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { deleteAccountThunk, hydrateAuth, logoutThunk } from "@/store/authSlice";
 import { loadProfileAnalyticsThunk, type AnalyticsRange } from "@/store/profileSlice";
 
-type ProfileTab = "account" | "analytics" | "admin";
+type ProfileTab = "account" | "insights" | "admin";
 
 type AdminUser = {
     id: string;
@@ -21,8 +22,10 @@ type AdminUser = {
 };
 
 const ProfilePage = () => {
+    const FEEDBACK_CACHE_VERSION = "v2";
     const dispatch = useAppDispatch();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [activeTab, setActiveTab] = useState<ProfileTab>("account");
     const [analyticsRange, setAnalyticsRange] = useState<AnalyticsRange>("last7");
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState<boolean>(false);
@@ -31,9 +34,13 @@ const ProfilePage = () => {
     const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
     const [adminLoading, setAdminLoading] = useState<boolean>(false);
     const [hasAdminAccess, setHasAdminAccess] = useState<boolean>(false);
+    const [dailyFeedback, setDailyFeedback] = useState<string>("");
+    const [feedbackLoading, setFeedbackLoading] = useState<boolean>(false);
 
     const auth = useAppSelector((state) => state.auth);
     const analyticsState = useAppSelector((state) => state.profile);
+    const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
+    const userNameForFeedback = useMemo(() => auth.profile?.firstName?.trim() || "there", [auth.profile?.firstName]);
 
     useEffect(() => {
         void dispatch(hydrateAuth());
@@ -64,6 +71,65 @@ const ProfilePage = () => {
 
         void detectAdminAccess();
     }, [auth.session?.access_token]);
+
+    useEffect(() => {
+        if (!auth.checked || activeTab !== "insights" || analyticsState.status !== "succeeded") return;
+
+        const cacheKey = `daily-feedback-${FEEDBACK_CACHE_VERSION}-${auth.profile?.id ?? "anonymous"}-${todayKey}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            setDailyFeedback(cached);
+            return;
+        }
+
+        const generateFeedback = async () => {
+            setFeedbackLoading(true);
+            try {
+                const response = await fetch("/api/profile/feedback", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name: userNameForFeedback,
+                        stats: {
+                            bookmarksCount: analyticsState.analytics.bookmarksCount,
+                            notesCount: analyticsState.analytics.notesCount,
+                            avgDonePerDay: analyticsState.analytics.avgDonePerDay,
+                            recentSeries: analyticsState.analytics.dailyTaskDone,
+                        },
+                        activeGoals: [],
+                    }),
+                });
+
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(payload?.error || "Failed to generate feedback.");
+                }
+                const text = String(payload.feedback || "").trim();
+                if (text) {
+                    setDailyFeedback(text);
+                    localStorage.setItem(cacheKey, text);
+                }
+            } catch (error) {
+                const message = error instanceof Error ? error.message : "AI feedback failed.";
+                setDailyFeedback(`AI feedback unavailable: ${message}`);
+            } finally {
+                setFeedbackLoading(false);
+            }
+        };
+
+        void generateFeedback();
+    }, [
+        activeTab,
+        analyticsState.analytics.avgDonePerDay,
+        analyticsState.analytics.bookmarksCount,
+        analyticsState.analytics.dailyTaskDone,
+        analyticsState.analytics.notesCount,
+        analyticsState.status,
+        auth.checked,
+        auth.profile?.id,
+        todayKey,
+        userNameForFeedback,
+    ]);
 
     const fullName = useMemo(() => {
         const name = `${auth.profile?.firstName ?? ""} ${auth.profile?.lastName ?? ""}`.trim();
@@ -96,9 +162,23 @@ const ProfilePage = () => {
 
     const tabs: { key: ProfileTab; label: string }[] = [
         { key: "account", label: "Account" },
-        { key: "analytics", label: "Analytics" },
+        { key: "insights", label: "Insights" },
         ...((auth.profile?.role === "admin" || hasAdminAccess) ? [{ key: "admin" as const, label: "Admin" }] : []),
     ];
+
+    useEffect(() => {
+        const rawTab = searchParams.get("tab");
+        if (!rawTab) return;
+
+        if (rawTab === "account" || rawTab === "insights") {
+            setActiveTab(rawTab);
+            return;
+        }
+
+        if (rawTab === "admin" && (auth.profile?.role === "admin" || hasAdminAccess)) {
+            setActiveTab("admin");
+        }
+    }, [searchParams, auth.profile?.role, hasAdminAccess]);
 
     const loadAdminUsers = useCallback(async (query = "") => {
         if (!auth.session?.access_token) return;
@@ -207,8 +287,8 @@ const ProfilePage = () => {
     const isAnalyticsLoading = analyticsState.status === "loading";
 
     return (
-        <div className="min-h-screen px-[6vw] py-[5vh]">
-            <div className="mx-auto max-w-5xl">
+        <div className="h-screen px-[6vw] py-[5vh] overflow-hidden">
+            <div className="mx-auto max-w-5xl h-full flex flex-col">
                 <div className="sticky top-4 z-20">
                     <div className="w-full p-1 rounded-full border-2 border-[var(--fill-primary)] bg-[var(--bg-control)]/90 backdrop-blur-md shadow-lg flex gap-1">
                         {tabs.map((tab) => (
@@ -229,11 +309,42 @@ const ProfilePage = () => {
                     </div>
                 </div>
 
-                <div className="mt-6 rounded-3xl border border-[var(--fill-primary)] bg-[var(--bg-control)]/70 p-6 backdrop-blur-xl md:p-8">
-                    {activeTab === "analytics" && (
+                <div className="mt-6 flex-1 min-h-0 rounded-3xl border border-[var(--fill-primary)] bg-[var(--bg-control)]/70 backdrop-blur-xl overflow-hidden">
+                    <div className="h-full overflow-y-auto p-6 md:p-8 [scrollbar-gutter:stable]">
+                    {activeTab === "insights" && (
                         <>
-                            <h2 className="text-3xl font-extrabold">Analytics</h2>
-                            <p className="mt-2 text-[var(--text-secondary)]">Your current productivity snapshot.</p>
+                            <h2 className="text-3xl font-extrabold">Insights</h2>
+                            <p className="mt-2 text-[var(--text-secondary)]">Your daily feedback and productivity snapshot.</p>
+
+                            <div className="mt-5 rounded-2xl border border-[var(--fill-primary)] bg-[var(--fill-primary)]/25 p-4">
+                                <p className="text-sm text-[var(--text-secondary)]">AI Feedback for Today</p>
+                                <AnimatePresence mode="wait">
+                                    {feedbackLoading ? (
+                                        <motion.div
+                                            key="feedback-loading"
+                                            initial={{ opacity: 0, y: 8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -8 }}
+                                            className="mt-3 space-y-2"
+                                        >
+                                            <span className="block h-3 w-full rounded-full bg-[var(--fill-primary)]/70 animate-pulse" />
+                                            <span className="block h-3 w-[92%] rounded-full bg-[var(--fill-primary)]/70 animate-pulse" />
+                                            <span className="block h-3 w-[78%] rounded-full bg-[var(--fill-primary)]/70 animate-pulse" />
+                                        </motion.div>
+                                    ) : (
+                                        <motion.p
+                                            key={dailyFeedback || "feedback-ready"}
+                                            initial={{ opacity: 0, y: 8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -8 }}
+                                            transition={{ duration: 0.35, ease: "easeOut" }}
+                                            className="mt-3 text-sm leading-6 text-[var(--text-primary)]"
+                                        >
+                                            {dailyFeedback || "Feedback will appear here as soon as your data is ready."}
+                                        </motion.p>
+                                    )}
+                                </AnimatePresence>
+                            </div>
 
                             <div className="mt-4 flex gap-2 flex-wrap">
                                 {rangeOptions.map((option) => (
@@ -428,6 +539,7 @@ const ProfilePage = () => {
                             </div>
                         </>
                     )}
+                    </div>
                 </div>
             </div>
 
