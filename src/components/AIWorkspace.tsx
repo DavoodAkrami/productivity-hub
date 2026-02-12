@@ -12,6 +12,7 @@ import { BsCircleFill } from "react-icons/bs";
 import { FiCheck, FiPlus, FiTrash2 } from "react-icons/fi";
 import { BsStopFill } from "react-icons/bs";
 import { useRouter } from "next/navigation";
+import { fetchAIChatsForCurrentUser, replaceAIChatsForCurrentUser } from "@/lib/supabase/userData";
 
 interface MessageType {
     id: number;
@@ -141,6 +142,7 @@ const AIWorkspace: React.FC<{ routeChatId?: string | null }> = ({ routeChatId = 
     const typingTimerRef = useRef<number | null>(null);
     const activeTypingRef = useRef<{ chatId: string; assistantId: number } | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
+    const chatsHydratedRef = useRef<boolean>(false);
 
     const effectiveChatId = routeChatId ?? transientChatId;
     const activeChat = useMemo(
@@ -409,47 +411,106 @@ const AIWorkspace: React.FC<{ routeChatId?: string | null }> = ({ routeChatId = 
     const isSendDisabled = !isStreaming && (loading || input.trim() === "");
 
     useEffect(() => {
-        setChatLoading(true);
-        const storedChats = localStorage.getItem(AI_CHATS_KEY);
-
-        if (storedChats) {
+        const bootstrap = async () => {
+            setChatLoading(true);
             try {
-                const parsed = JSON.parse(storedChats) as ChatThread[];
-                if (Array.isArray(parsed)) {
-                    const normalized = parsed.map((chat) => ({ ...chat, searchIndex: chat.searchIndex ?? buildSearchIndex(chat) }));
-                    const deduped = dedupeChatTitles(normalized);
+                const remote = await fetchAIChatsForCurrentUser();
+                if (remote.chats.length > 0) {
+                    const messagesByChat = new Map<string, MessageType[]>();
+                    remote.messages.forEach((msg, index) => {
+                        const arr = messagesByChat.get(msg.chat_id) ?? [];
+                        arr.push({
+                            id: Number(`${index + 1}${Math.floor(Math.random() * 9999)}`),
+                            role: msg.role,
+                            message: msg.content,
+                        });
+                        messagesByChat.set(msg.chat_id, arr);
+                    });
+                    const next = remote.chats.map((chat) => ({
+                        id: chat.id,
+                        title: chat.title,
+                        searchIndex: chat.search_index ?? "",
+                        createdAt: chat.created_at,
+                        updatedAt: chat.updated_at,
+                        messages: messagesByChat.get(chat.id) ?? [],
+                    }));
+                    const deduped = dedupeChatTitles(next);
                     setChats(deduped);
                     localStorage.setItem(AI_CHATS_KEY, JSON.stringify(deduped));
+                    setChatLoading(false);
+                    chatsHydratedRef.current = true;
+                    return;
+                }
+            } catch {
+                // fallback to local data
+            }
+            try {
+                const storedChats = localStorage.getItem(AI_CHATS_KEY);
+                if (storedChats) {
+                    const parsed = JSON.parse(storedChats) as ChatThread[];
+                    if (Array.isArray(parsed)) {
+                        const normalized = parsed.map((chat) => ({ ...chat, searchIndex: chat.searchIndex ?? buildSearchIndex(chat) }));
+                        const deduped = dedupeChatTitles(normalized);
+                        setChats(deduped);
+                        localStorage.setItem(AI_CHATS_KEY, JSON.stringify(deduped));
+                    }
+                    setChatLoading(false);
+                    chatsHydratedRef.current = true;
+                    return;
                 }
             } catch {
                 setChats([]);
+            }
+            const legacy = localStorage.getItem(LEGACY_CHAT_KEY);
+            if (legacy) {
+                try {
+                    const parsed = JSON.parse(legacy) as MessageType[];
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        const migrated: ChatThread = {
+                            id: crypto.randomUUID(),
+                            title: "Previous Chat",
+                            searchIndex: normalizeText(parsed.map((message) => message.message).join(" ")),
+                            messages: parsed,
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString(),
+                        };
+                        setChats([migrated]);
+                        localStorage.setItem(AI_CHATS_KEY, JSON.stringify([migrated]));
+                    }
+                } catch {
+                    setChats([]);
+                }
             }
             setChatLoading(false);
-            return;
-        }
+            chatsHydratedRef.current = true;
+        };
 
-        const legacy = localStorage.getItem(LEGACY_CHAT_KEY);
-        if (legacy) {
-            try {
-                const parsed = JSON.parse(legacy) as MessageType[];
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    const migrated: ChatThread = {
-                        id: crypto.randomUUID(),
-                        title: "Previous Chat",
-                        searchIndex: normalizeText(parsed.map((message) => message.message).join(" ")),
-                        messages: parsed,
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString(),
-                    };
-                    setChats([migrated]);
-                    localStorage.setItem(AI_CHATS_KEY, JSON.stringify([migrated]));
-                }
-            } catch {
-                setChats([]);
-            }
-        }
-        setChatLoading(false);
+        void bootstrap();
     }, []);
+
+    useEffect(() => {
+        if (!chatsHydratedRef.current || isStreaming) return;
+        const timer = window.setTimeout(() => {
+            const chatRows = chats.map((chat) => ({
+                id: chat.id,
+                title: chat.title,
+                search_index: chat.searchIndex ?? "",
+                created_at: chat.createdAt,
+                updated_at: chat.updatedAt,
+            }));
+            const messageRows = chats.flatMap((chat) =>
+                chat.messages.map((message, index) => ({
+                    chat_id: chat.id,
+                    role: message.role,
+                    content: message.message,
+                    created_at: new Date(new Date(chat.createdAt).getTime() + index).toISOString(),
+                }))
+            );
+            void replaceAIChatsForCurrentUser(chatRows, messageRows);
+        }, 700);
+
+        return () => window.clearTimeout(timer);
+    }, [chats, isStreaming]);
 
     useEffect(() => {
         if (lastChat.current) {

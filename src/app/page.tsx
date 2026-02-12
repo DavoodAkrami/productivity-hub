@@ -1,338 +1,151 @@
-"use client"
-import { useEffect, useState } from "react";
-import BookMarkCard from "@/components/BookMarkdCard";
-import { bookmarkProp } from "@/components/BookMarkdCard";
-import Button from "@/components/Buttons";
-import Modal from "@/components/Modal";
-import Notodolists from "@/components/Notodolists";
-import { undoManager } from "@/lib/undoManager";
+"use client";
 
-type NotificationState = {
-    isOpen: boolean;
-    title: string;
-    description: string;
-    variant: "default" | "success" | "error";
-    undoId?: number;
-    key: number;
-};
+import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { FaRobot } from "react-icons/fa";
+import { FiBookOpen, FiCheckCircle, FiList, FiShield, FiZap } from "react-icons/fi";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { hydrateAuth } from "@/store/authSlice";
 
-const App = () => {
-    const [loading, setloading] = useState<boolean>(false);
-    const [error, setError] = useState<null | string>(null);
-    const [bookmarks, setBookmarks] = useState<bookmarkProp[] | null>([]);
-    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-    const [isEditing, setIsEditing] = useState<boolean>(false);
-    const [isDeleteModalopen, setIsdeleteModalOpen] = useState<boolean>(false);
-    const [deleteBookMark, setDeleteBookMark] = useState<string>(""); 
-    const [notification, setNotification] = useState<NotificationState>({
-        isOpen: false,
-        title: "",
-        description: "",
-        variant: "default",
-        undoId: undefined,
-        key: 0,
-    });
-
-    const [bookMarkForm, setBookMarkForm] = useState<bookmarkProp>({
-        id: null,
-        title: "",
-        description: "",
-        link: ""
-    })
-
-    const getItems = () => {
-        setloading(true);
-        try {
-            const stored = localStorage.getItem('bookmarks');
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                if (Array.isArray(parsed)) {
-                    setBookmarks(parsed as bookmarkProp[]);
-                } else {
-                    setBookmarks([]);
-                }
-            } else {
-                setBookmarks([]);
-            }
-            setError(null);
-        } catch (err) {
-            setError('Failed to load bookmarks');
-            setBookmarks([]);
-        } finally {
-            setloading(false);
-        }
-    }
+const LandingPage = () => {
+    const router = useRouter();
+    const dispatch = useAppDispatch();
+    const { session, checked } = useAppSelector((state) => state.auth);
 
     useEffect(() => {
-        getItems();
-    }, [])
+        void dispatch(hydrateAuth());
+    }, [dispatch]);
 
-    const handleSubmitForm = (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-
-        const newBookmark: bookmarkProp = {
-            id: Math.random(),
-            title: bookMarkForm.title,
-            description: bookMarkForm.description,
-            link: bookMarkForm.link,
-        };
-
-        let existing: bookmarkProp[] = [];
-        try {
-            const stored = localStorage.getItem('bookmarks');
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                if (Array.isArray(parsed)) existing = parsed as bookmarkProp[];
-            }
-        } catch (_) {
-            existing = [];
+    useEffect(() => {
+        if (checked && session) {
+            router.replace("/bookmarks");
         }
+    }, [checked, session, router]);
 
-        const next = [...existing, newBookmark];
-        localStorage.setItem('bookmarks', JSON.stringify(next));
-        setBookmarks(next);
-        const undoId = undoManager.register(() => {
-            const stored = localStorage.getItem('bookmarks');
-            const parsed: bookmarkProp[] = stored ? JSON.parse(stored) : [];
-            const updated = parsed.filter((bm) => bm.id !== newBookmark.id);
-            localStorage.setItem('bookmarks', JSON.stringify(updated));
-            setBookmarks(updated);
-        });
-        setNotification({
-            isOpen: true,
-            title: "Bookmark Added",
-            description: `${newBookmark.title} added to bookmarks.`,
-            variant: "success",
-            undoId,
-            key: Date.now(),
-        });
-        setIsModalOpen(false);
-        setBookMarkForm({id: null , title: "", description: "", link: "" });
-    }
-
-
-
-    const handleDelete = (id: number | null) => {
-        const existing: bookmarkProp[] = [...(bookmarks ?? [])];
-        const toDelete = existing.find(bm => bm.id === id);
-        const indexTodelete = existing.findIndex(bm => bm.id === id);
-        
-        if(indexTodelete !== -1){
-            const deletedBookmark = existing[indexTodelete];
-            const deletedIndex = indexTodelete;
-            existing.splice(indexTodelete, 1);
-            localStorage.setItem('bookmarks', JSON.stringify(existing));
-            setBookmarks(existing); 
-            setIsdeleteModalOpen(false);
-            if (toDelete) {
-                const undoId = undoManager.register(() => {
-                    const stored = localStorage.getItem('bookmarks');
-                    const parsed: bookmarkProp[] = stored ? JSON.parse(stored) : [];
-                    if (parsed.some((bm) => bm.id === deletedBookmark.id)) return;
-                    const next = [...parsed];
-                    next.splice(Math.min(deletedIndex, next.length), 0, deletedBookmark);
-                    localStorage.setItem('bookmarks', JSON.stringify(next));
-                    setBookmarks(next);
-                });
-                setNotification({
-                    isOpen: true,
-                    title: "Bookmark Deleted",
-                    description: `${toDelete.title} bookmark deleted.`,
-                    variant: "error",
-                    undoId,
-                    key: Date.now(),
-                });
-            }
-        } else {
-            console.log("Bookmark not found");
-        }
-    }
-    
-    const handleEdit = (bm: bookmarkProp) => {
-        setIsEditing(true)
-        setBookMarkForm(bm)
-        setIsModalOpen(true)
-    }
-
-    const handleSubmitEdit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-    
-        const updatedBookmark: bookmarkProp = {
-            id: bookMarkForm.id,
-            title: bookMarkForm.title,
-            description: bookMarkForm.description,
-            link: bookMarkForm.link,
-        };
-    
-        const existing: bookmarkProp[] = [...(bookmarks ?? [])];
-        console.log(bookMarkForm.title)
-        const indexToUpdate = existing.findIndex(bm => bm.id === bookMarkForm.id);
-    
-        if (indexToUpdate !== -1) {
-            const previousBookmark = existing[indexToUpdate];
-            existing[indexToUpdate] = updatedBookmark;
-            localStorage.setItem('bookmarks', JSON.stringify(existing));
-            setBookmarks(existing);
-            const undoId = undoManager.register(() => {
-                const stored = localStorage.getItem('bookmarks');
-                const parsed: bookmarkProp[] = stored ? JSON.parse(stored) : [];
-                const index = parsed.findIndex((bm) => bm.id === previousBookmark.id);
-                if (index === -1) return;
-                const next = [...parsed];
-                next[index] = previousBookmark;
-                localStorage.setItem('bookmarks', JSON.stringify(next));
-                setBookmarks(next);
-            });
-            setNotification({
-                isOpen: true,
-                title: "Bookmark Updated",
-                description: `${updatedBookmark.title} updated in bookmarks.`,
-                variant: "success",
-                undoId,
-                key: Date.now(),
-            });
-            setIsModalOpen(false);
-            setBookMarkForm({ id: null, title: "", description: "", link: "" });
-            setIsEditing(false);
-        } else {
-            console.log("Bookmark not found");
-        }
-    };
-    
-    
-    const handleCloseModal = () => {
-        if (isEditing) {
-            setIsModalOpen(false)
-            setIsEditing(false)
-            setBookMarkForm({
-                id: null,
-                title: "",
-                description: "",
-                link: ""
-            })
-        } else {
-            setIsModalOpen(false)
-        }
-    }
-
-    return  (
-        <div 
-            className="py-[5vw] px-[10vw] max-w-[80%] mx-auto"
-        >
-            <Notodolists
-                key={notification.key}
-                title={notification.title}
-                description={notification.description}
-                variant={notification.variant}
-                isOpen={notification.isOpen}
-                onUndo={notification.undoId ? () => { undoManager.consume(notification.undoId); } : undefined}
-                onClose={() => setNotification((prev) => ({ ...prev, isOpen: false }))}
-            />
-            <div 
-                className="flex justify-between items-center w-full"
-            >
-                <h1
-                    className="text-[3rem] max-md:text-[2rem] font-extrabold text-[var(--text-primary)]"
-                >
-                    My Bookmarks
-                </h1>
-                <Button
-                    size="md"
-                    kind="button"
-                    variant="filled"
-                    color="accent-blue"
-                    onClick={() => setIsModalOpen(true)}
-                >
-                    Add Bookmark
-                </Button>
+    return (
+        <div className="relative min-h-screen overflow-x-hidden bg-[radial-gradient(1200px_600px_at_20%_-10%,rgba(0,122,255,0.28),transparent_60%),radial-gradient(1000px_600px_at_80%_110%,rgba(16,185,129,0.20),transparent_60%),var(--bg-primary)] text-[var(--text-primary)]">
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                <div className="absolute -top-20 -left-16 h-72 w-72 rounded-full bg-[var(--accent-blue)]/20 blur-3xl" />
+                <div className="absolute -bottom-20 -right-16 h-72 w-72 rounded-full bg-[var(--accent-green)]/20 blur-3xl" />
             </div>
-            {loading ? 
-                <div className="h1">
-                    Loading...
-                </div> :
-                <div
-                    className="mt-6 grid grid-cols-3 gap-6 overflow-y-auto max-h-[80vh]"
-                >
-                    {Array.isArray(bookmarks) && bookmarks.map((bm, index) => (
-                        <BookMarkCard
-                            key={index}
-                            id={bm.id}
-                            title={bm.title}
-                            description={bm.description}
-                            link={bm.link}
-                            handleEdit={() => handleEdit(bm)}
-                            handleDelete={() => handleDelete(bm.id)}
-                        />
-                    ))}
-                </div>
-            }
 
-            <Modal
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-            >
-                <Button
-                    kind="three-dot"
-                    color="accent-blue"
-                    size="lg" 
-                    variant="filled"
-                    onClickDotRed={handleCloseModal}
-                    className=""
-                >
-                </Button>
-                <h2 className="h2 text-center text-3xl font-bold mt-2 mb-6">
-                    Add BookMark
-                </h2>
-                <form
-                    onSubmit={isEditing ? handleSubmitEdit : handleSubmitForm}
-                    className="w-[85%] mx-auto flex flex-col gap-3"    
-                >
-                    <input 
-                        type="text" 
-                        onChange={(e) => setBookMarkForm({...bookMarkForm, title: e.target.value})}
-                        value={bookMarkForm.title}
-                        name="title"
-                        placeholder="title"
-                        required 
-                        className="bg-[var(--bg-control)] py-2.5 px-2.5 rounded-full border border-[var(--accent-gray)] outline-none focus:border-[var(--accent-blue)]"   
-                    />
-                    <input 
-                        type="text" 
-                        onChange={(e) => setBookMarkForm({...bookMarkForm, description: e.target.value})}
-                        value={bookMarkForm.description}
-                        name="description"
-                        placeholder="description"
-                        className="bg-[var(--bg-control)] py-2.5 px-2.5 rounded-full border border-[var(--accent-gray)] outline-none focus:border-[var(--accent-blue)]"   
-                    />
-                    <input 
-                        type="text" 
-                        onChange={(e) => setBookMarkForm({...bookMarkForm, link: e.target.value})}
-                        value={bookMarkForm.link}
-                        name="link"
-                        placeholder="link"
-                        required 
-                        className="bg-[var(--bg-control)] py-2.5 px-2.5 rounded-full border border-[var(--accent-gray)] outline-none focus:border-[var(--accent-blue)]"   
-                    />
-                    <div className="w-full flex justify-center gap-2">
-                        <Button 
-                            htmlType="button" 
-                            kind="button" 
-                            variant="outline" 
-                            color="accent-gray" 
-                            size="md" 
-                            classname="w-full" 
-                            onClick={handleCloseModal}
-                            >
-                            Close
-                        </Button>
-                        <Button htmlType="submit" kind="button" variant="filled" color="accent-blue" size="md" classname="w-full">
-                            {isEditing ? "edit" : "Add"}
-                        </Button>
+            <header className="fixed inset-x-0 top-4 z-30">
+                <div className="mx-auto flex w-[92%] max-w-6xl items-center justify-between rounded-full border border-[var(--fill-primary)]/75 bg-[var(--bg-control)]/72 px-4 py-3 shadow-[0_10px_32px_rgba(0,0,0,0.14)] backdrop-blur-2xl md:px-6">
+                    <h2 className="text-xl font-extrabold tracking-tight md:text-2xl">Productive Hub</h2>
+                    <div className="flex items-center gap-2">
+                        <Link
+                            href="/signup"
+                            className="rounded-full border border-[var(--fill-primary)] px-4 py-2 text-sm font-semibold transition hover:bg-[var(--fill-primary)]"
+                        >
+                            Start Now
+                        </Link>
+                        <Link
+                            href="/login"
+                            className="cursor-pointer rounded-full bg-[var(--accent-blue)] px-4 py-2 text-sm font-bold text-white shadow-[0_10px_24px_rgba(0,122,255,0.3)] transition hover:brightness-110"
+                        >
+                            Login
+                        </Link>
                     </div>
-                </form>
-            </Modal>
-        </div>
-    )
-}
+                </div>
+            </header>
 
-export default App;
+            <section className="relative mx-auto flex w-[92%] max-w-6xl flex-col items-center px-4 pb-14 pt-32 md:pt-36">
+                <span className="rounded-full border border-[var(--fill-primary)] bg-[var(--bg-control)]/70 px-4 py-2 text-sm backdrop-blur-xl">Productive Hub</span>
+
+                <h1 className="mt-6 max-w-4xl text-center text-4xl font-extrabold leading-tight md:text-6xl">
+                    Plan Better.
+                    <span className="bg-gradient-to-r from-[var(--accent-blue)] to-cyan-300 bg-clip-text text-transparent"> Execute Faster.</span>
+                </h1>
+
+                <p className="mt-5 max-w-2xl text-center text-base text-[var(--text-secondary)] md:text-lg">
+                    Save bookmarks, manage tasks and notes, and use AI assistance in one clean workspace built for daily flow.
+                </p>
+
+                <div className="mt-8 flex w-full max-w-md items-center justify-center gap-3">
+                    <Link
+                        href="/signup"
+                        className="w-full rounded-full bg-[var(--accent-blue)] px-6 py-3 text-center text-base font-bold text-white shadow-[0_10px_30px_rgba(0,122,255,0.35)] transition hover:brightness-110"
+                    >
+                        Start Now
+                    </Link>
+                </div>
+            </section>
+
+            <section className="relative mx-auto w-[92%] max-w-6xl px-4 pb-14">
+                <div className="mx-auto mt-12 grid w-full max-w-5xl grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="rounded-3xl border border-[var(--fill-primary)] bg-[var(--bg-control)]/65 p-5 backdrop-blur-xl">
+                        <div className="mb-3 inline-flex rounded-xl bg-[var(--fill-primary)] p-2 text-[var(--accent-blue)]">
+                            <FiBookOpen className="text-xl" />
+                        </div>
+                        <h3 className="text-xl font-bold">Smart Bookmarks</h3>
+                        <p className="mt-2 text-sm text-[var(--text-secondary)]">Organize links with clean cards, quick edits, and lightweight controls.</p>
+                    </div>
+
+                    <div className="rounded-3xl border border-[var(--fill-primary)] bg-[var(--bg-control)]/65 p-5 backdrop-blur-xl">
+                        <div className="mb-3 inline-flex rounded-xl bg-[var(--fill-primary)] p-2 text-[var(--accent-green)]">
+                            <FiList className="text-xl" />
+                        </div>
+                        <h3 className="text-xl font-bold">Tasks & Notes</h3>
+                        <p className="mt-2 text-sm text-[var(--text-secondary)]">Track priorities, labels, and dates with a focused interface.</p>
+                    </div>
+
+                    <div className="rounded-3xl border border-[var(--fill-primary)] bg-[var(--bg-control)]/65 p-5 backdrop-blur-xl">
+                        <div className="mb-3 inline-flex rounded-xl bg-[var(--fill-primary)] p-2 text-cyan-300">
+                            <FaRobot className="text-xl" />
+                        </div>
+                        <h3 className="text-xl font-bold">AI Assistant</h3>
+                        <p className="mt-2 text-sm text-[var(--text-secondary)]">Chat, take action, and manage your workspace faster.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section className="relative mx-auto w-[92%] max-w-6xl px-4 pb-14">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="rounded-3xl border border-[var(--fill-primary)] bg-[var(--bg-control)]/65 p-6 backdrop-blur-xl">
+                        <h3 className="text-2xl font-bold">Why teams use it daily</h3>
+                        <ul className="mt-5 space-y-3 text-[var(--text-secondary)]">
+                            <li className="flex items-center gap-2"><FiCheckCircle className="text-[var(--accent-green)]" /> Fast task capture and clear priorities</li>
+                            <li className="flex items-center gap-2"><FiCheckCircle className="text-[var(--accent-green)]" /> Notes connected to your real workflow</li>
+                            <li className="flex items-center gap-2"><FiCheckCircle className="text-[var(--accent-green)]" /> AI actions where you already work</li>
+                        </ul>
+                    </div>
+                    <div className="rounded-3xl border border-[var(--fill-primary)] bg-[var(--bg-control)]/65 p-6 backdrop-blur-xl">
+                        <h3 className="text-2xl font-bold">Built for reliability</h3>
+                        <div className="mt-5 space-y-4 text-sm text-[var(--text-secondary)]">
+                            <p className="flex items-center gap-2"><FiShield className="text-[var(--accent-blue)]" /> Predictable UX with undo support</p>
+                            <p className="flex items-center gap-2"><FiZap className="text-[var(--accent-blue)]" /> Lightweight interactions with smooth performance</p>
+                            <p className="flex items-center gap-2"><FiBookOpen className="text-[var(--accent-blue)]" /> One hub for links, notes, and planning</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section className="relative mx-auto w-[92%] max-w-6xl px-4 pb-24">
+                <div className="rounded-3xl border border-[var(--fill-primary)] bg-[var(--bg-control)]/65 p-8 text-center backdrop-blur-xl">
+                    <h3 className="text-3xl font-extrabold">Ready to start?</h3>
+                    <p className="mx-auto mt-3 max-w-2xl text-[var(--text-secondary)]">
+                        Open your workspace and start organizing your tasks, notes, bookmarks, and AI workflows.
+                    </p>
+                    <div className="mx-auto mt-6 flex w-full max-w-sm items-center justify-center gap-3">
+                        <Link
+                            href="/signup"
+                            className="w-full rounded-full bg-[var(--accent-blue)] px-6 py-3 text-center text-base font-bold text-white shadow-[0_10px_30px_rgba(0,122,255,0.35)] transition hover:brightness-110"
+                        >
+                            Start Now
+                        </Link>
+                    </div>
+                </div>
+            </section>
+
+            <footer className="border-t border-[var(--fill-primary)]/60 bg-[var(--bg-control)]/50 py-5 backdrop-blur-xl">
+                <div className="mx-auto flex w-[92%] max-w-6xl items-center justify-between text-xs text-[var(--text-secondary)]">
+                    <p>© {new Date().getFullYear()} Productive Hub</p>
+                    <p>Built for focused daily workflows.</p>
+                </div>
+            </footer>
+        </div>
+    );
+};
+
+export default LandingPage;

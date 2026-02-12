@@ -18,6 +18,14 @@ import { FiCheckSquare, FiSquare } from "react-icons/fi";
 import { IoColorPaletteOutline } from "react-icons/io5";
 import Notodolists from "@/components/Notodolists";
 import { undoManager } from "@/lib/undoManager";
+import {
+    fetchLabelsForCurrentUser,
+    fetchNotesForCurrentUser,
+    fetchTodosForCurrentUser,
+    replaceLabelsForCurrentUser,
+    replaceNotesForCurrentUser,
+    replaceTodosForCurrentUser,
+} from "@/lib/supabase/userData";
 
 
 
@@ -78,6 +86,8 @@ const ToDoList = () => {
     const formRef = useRef<HTMLFormElement>(null);
     const dataModalRef = useRef<HTMLUListElement>(null);
     const taskModalRef = useRef<HTMLUListElement>(null);
+    const todosHydratedRef = useRef<boolean>(false);
+    const labelsHydratedRef = useRef<boolean>(false);
 
     
     useEffect(() => {
@@ -96,6 +106,33 @@ const ToDoList = () => {
         }
     }, []);
 
+    useEffect(() => {
+        const hydrateTodos = async () => {
+            try {
+                const remote = await fetchTodosForCurrentUser();
+                if (remote.length > 0) {
+                    const mapped: Task[] = remote.map((row) => ({
+                        id: row.id,
+                        title: row.title,
+                        description: row.description,
+                        priority: row.priority ?? undefined,
+                        label: row.label || "",
+                        date: row.due_date || "",
+                        completed: row.completed,
+                        completedAt: row.completed_at || undefined,
+                    }));
+                    settoDos(mapped);
+                    localStorage.setItem("toDos", JSON.stringify(mapped));
+                }
+            } catch {
+                // keep local fallback
+            } finally {
+                todosHydratedRef.current = true;
+            }
+        };
+        void hydrateTodos();
+    }, []);
+
     useEffect(() => {      
         const availableLabels = localStorage.getItem("labels");
         if (availableLabels) {
@@ -108,6 +145,47 @@ const ToDoList = () => {
             setLabels([{ name: "None", value: "" }, ...parsed, { name: "Add new label", value: "Add new label"}]);
         }
     }, []);
+
+    useEffect(() => {
+        const hydrateLabels = async () => {
+            try {
+                const remote = await fetchLabelsForCurrentUser();
+                if (remote.length > 0) {
+                    const mapped = remote.map((label) => ({ name: label.name, value: label.value }));
+                    localStorage.setItem("labels", JSON.stringify(mapped));
+                    setLabels([{ name: "None", value: "" }, ...mapped, { name: "Add new label", value: "Add new label" }]);
+                }
+            } catch {
+                // keep local fallback
+            } finally {
+                labelsHydratedRef.current = true;
+            }
+        };
+        void hydrateLabels();
+    }, []);
+
+    useEffect(() => {
+        if (!todosHydratedRef.current) return;
+        const payload = toDos.map((task) => ({
+            id: String(task.id),
+            title: task.title,
+            description: task.description || "",
+            priority: task.priority ?? null,
+            label: task.label || "",
+            due_date: task.date || null,
+            completed: Boolean(task.completed),
+            completed_at: task.completedAt || null,
+        }));
+        void replaceTodosForCurrentUser(payload);
+    }, [toDos]);
+
+    useEffect(() => {
+        if (!labelsHydratedRef.current) return;
+        const payload = labels
+            .filter((label) => label.value !== "" && label.value !== "Add new label")
+            .map((label) => ({ name: label.name, value: label.value }));
+        void replaceLabelsForCurrentUser(payload);
+    }, [labels]);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -273,7 +351,7 @@ const ToDoList = () => {
             if (task.id !== id) return task;
             const nextCompleted = !task.completed;
             if (nextCompleted) completedTaskTitle = task.title;
-            return { ...task, completed: nextCompleted };
+            return { ...task, completed: nextCompleted, completedAt: nextCompleted ? new Date().toISOString() : undefined };
         });
 
         localStorage.setItem("toDos", JSON.stringify(updatedTasks));
@@ -283,7 +361,9 @@ const ToDoList = () => {
                 const stored = localStorage.getItem("toDos");
                 const parsed: Task[] = stored ? JSON.parse(stored) : [];
                 const next = parsed.map((task) =>
-                    task.id === id ? { ...task, completed: targetTask?.completed ?? false } : task
+                    task.id === id
+                        ? { ...task, completed: targetTask?.completed ?? false, completedAt: targetTask?.completedAt }
+                        : task
                 );
                 localStorage.setItem("toDos", JSON.stringify(next));
                 settoDos(next);
@@ -1040,6 +1120,8 @@ const NotesBoard: React.FC<{ isActive: boolean }> = ({ isActive }) => {
     const noteModalRef = useRef<HTMLUListElement>(null);
     const detailPickerRef = useRef<HTMLUListElement>(null);
     const detailContentRef = useRef<HTMLDivElement>(null);
+    const notesHydratedRef = useRef<boolean>(false);
+    const labelsHydratedRef = useRef<boolean>(false);
 
     const loadLabels = () => {
         const shared = getSharedLabels();
@@ -1051,6 +1133,72 @@ const NotesBoard: React.FC<{ isActive: boolean }> = ({ isActive }) => {
         setNotes(getStoredNotes());
         loadLabels();
     }, [isActive]);
+
+    useEffect(() => {
+        if (!isActive) return;
+        const hydrateNotes = async () => {
+            try {
+                const remote = await fetchNotesForCurrentUser();
+                if (remote.length > 0) {
+                    const mapped: Note[] = remote.map((row) => ({
+                        id: row.id,
+                        title: row.title,
+                        content: row.content,
+                        color: row.color || "",
+                        label: row.label || "",
+                        date: row.note_date || "",
+                        createdAt: row.created_at,
+                        updatedAt: row.updated_at,
+                    }));
+                    setNotes(mapped);
+                    localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(mapped));
+                }
+            } catch {
+                // keep local fallback
+            } finally {
+                notesHydratedRef.current = true;
+            }
+        };
+        const hydrateLabels = async () => {
+            try {
+                const remote = await fetchLabelsForCurrentUser();
+                if (remote.length > 0) {
+                    const mapped = remote.map((label) => ({ name: label.name, value: label.value }));
+                    localStorage.setItem("labels", JSON.stringify(mapped));
+                    setLabels([{ name: "None", value: "" }, ...mapped, { name: "Add new label", value: "Add new label" }]);
+                }
+            } catch {
+                // keep local fallback
+            } finally {
+                labelsHydratedRef.current = true;
+            }
+        };
+        void hydrateNotes();
+        void hydrateLabels();
+    }, [isActive]);
+
+    useEffect(() => {
+        if (!isActive || !notesHydratedRef.current) return;
+        const payload = notes.map((note) => ({
+            id: note.id,
+            title: note.title,
+            content: note.content,
+            color: note.color || "",
+            label: note.label || "",
+            note_date: note.date || null,
+            created_at: note.createdAt,
+            updated_at: note.updatedAt,
+        }));
+        void replaceNotesForCurrentUser(payload);
+    }, [isActive, notes]);
+
+    useEffect(() => {
+        if (!isActive || !labelsHydratedRef.current) return;
+        const payload = labels
+            .filter((label) => label.value !== "" && label.value !== "Add new label")
+            .map((label) => ({ name: label.name, value: label.value }));
+        void replaceLabelsForCurrentUser(payload);
+    }, [isActive, labels]);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {

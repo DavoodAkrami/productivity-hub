@@ -92,10 +92,27 @@ export const functionsDefinitions = [
     }
 ];
 
-export const executeFunction = async (functionName: string, parameters: any) => {
-    const args = typeof parameters === "string"
-        ? JSON.parse(parameters)
-        : parameters;
+type TaskRecord = {
+    id?: number | string;
+    [key: string]: unknown;
+};
+
+type LabelRecord = {
+    value?: string;
+    [key: string]: unknown;
+};
+
+type FunctionArgs = {
+    id?: number;
+    value?: string;
+    task?: TaskRecord;
+    label?: LabelRecord;
+};
+
+export const executeFunction = async (functionName: string, parameters: unknown) => {
+    const args: FunctionArgs = typeof parameters === "string"
+        ? (JSON.parse(parameters) as FunctionArgs)
+        : ((parameters as FunctionArgs) ?? {});
 
     try {
         switch (functionName) {
@@ -130,8 +147,8 @@ export const executeFunction = async (functionName: string, parameters: any) => 
                 const data = localStorage.getItem("toDos");
                 const tasks = data ? JSON.parse(data) : [];
 
-                const updated = tasks.filter(
-                    (task: any) => task.id !== args.id
+                const updated = (tasks as TaskRecord[]).filter(
+                    (task) => task.id !== args.id
                 );
 
                 localStorage.setItem("toDos", JSON.stringify(updated));
@@ -143,12 +160,12 @@ export const executeFunction = async (functionName: string, parameters: any) => 
                 const data = localStorage.getItem("toDos");
                 const tasks = data ? JSON.parse(data) : [];
 
-                const task = tasks.find(
-                    (task: any) => task.id === args.id
+                const task = (tasks as TaskRecord[]).find(
+                    (taskItem) => taskItem.id === args.id
                 );
 
-                const updated = tasks.filter(
-                    (task: any) => task.id !== args.id
+                const updated = (tasks as TaskRecord[]).filter(
+                    (taskItem) => taskItem.id !== args.id
                 );
 
                 localStorage.setItem("toDos", JSON.stringify(updated));
@@ -172,8 +189,8 @@ export const executeFunction = async (functionName: string, parameters: any) => 
                 const data = localStorage.getItem("labels");
                 const labels = data ? JSON.parse(data) : [];
 
-                const updated = labels.filter(
-                    (label: any) => label.value !== args.value
+                const updated = (labels as LabelRecord[]).filter(
+                    (label) => label.value !== args.value
                 );
 
                 localStorage.setItem("labels", JSON.stringify(updated));
@@ -184,8 +201,10 @@ export const executeFunction = async (functionName: string, parameters: any) => 
             default:
                 return { error: `Function ${functionName} not implemented.` };
         }
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error(error);
-        return { error: error.message };
+        return {
+            error: error instanceof Error ? error.message : "Unknown error"
+        };
     }
 };

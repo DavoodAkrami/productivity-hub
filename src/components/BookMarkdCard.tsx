@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 
 export interface bookmarkProp {
-    id: number | null;
+    id: string | number | null;
     title: string;
     description?: string;
     link: string;

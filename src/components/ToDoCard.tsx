@@ -20,6 +20,7 @@ export interface Task {
     label?: string;
     date?: string; 
     completed?: boolean;
+    completedAt?: string;
 }
 
 export interface ToDoCardProps extends Task {
