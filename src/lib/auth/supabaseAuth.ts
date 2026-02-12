@@ -23,6 +23,18 @@ export const validateSignUpPayload = (payload: SignUpPayload) => {
     return null;
 };
 
+const getConfiguredDomain = () => {
+    if (typeof window !== "undefined" && window.location.origin) {
+        return window.location.origin.replace(/\/+$/, "");
+    }
+
+    const configured =
+        process.env.NEXT_PUBLIC_DOMINE?.trim() ||
+        process.env.NEXT_PUBLIC_DOMAIN?.trim() ||
+        "";
+    return configured.replace(/\/+$/, "");
+};
+
 export const loginWithEmail = async (payload: LoginPayload) => {
     if (!isSupabaseConfigured()) {
         throw new Error("Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
@@ -53,12 +65,8 @@ export const signUpWithEmail = async (payload: SignUpPayload) => {
     const supabase = getSupabaseBrowserClient();
 
     const redirectTo = (() => {
-        const configured =
-            process.env.NEXT_PUBLIC_DOMINE?.trim() ||
-            process.env.NEXT_PUBLIC_DOMAIN?.trim() ||
-            "";
-        const normalized = configured.replace(/\/+$/, "");
-        if (normalized) return `${normalized}/login`;
+        const configuredDomain = getConfiguredDomain();
+        if (configuredDomain) return `${configuredDomain}/login`;
         if (typeof window !== "undefined") return `${window.location.origin}/login`;
         return undefined;
     })();
@@ -85,12 +93,8 @@ export const continueWithGoogle = async () => {
     }
     const supabase = getSupabaseBrowserClient();
     const redirectTo = (() => {
-        const configured =
-            process.env.NEXT_PUBLIC_DOMINE?.trim() ||
-            process.env.NEXT_PUBLIC_DOMAIN?.trim() ||
-            "";
-        const normalized = configured.replace(/\/+$/, "");
-        if (normalized) return `${normalized}/bookmarks`;
+        const configuredDomain = getConfiguredDomain();
+        if (configuredDomain) return `${configuredDomain}/bookmarks`;
         if (typeof window !== "undefined") return `${window.location.origin}/bookmarks`;
         return undefined;
     })();
