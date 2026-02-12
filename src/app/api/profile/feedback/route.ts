@@ -24,10 +24,11 @@ export async function POST(request: Request) {
             );
         }
 
-        const client = new OpenAI({
-            apiKey,
-            baseURL: process.env.OPEN_AI_BASE_URL || process.env.NEXT_PUBLIC_OPEN_AI_BASE_URL,
-        });
+        const configuredBaseUrl = (process.env.OPEN_AI_BASE_URL || process.env.NEXT_PUBLIC_OPEN_AI_BASE_URL || "").trim();
+        const hasAbsoluteBaseUrl = /^https?:\/\//i.test(configuredBaseUrl);
+        const client = hasAbsoluteBaseUrl
+            ? new OpenAI({ apiKey, baseURL: configuredBaseUrl })
+            : new OpenAI({ apiKey });
 
         const compactSeries = body.stats.recentSeries.map((item) => `${item.day}:${item.done}`).join(", ");
         const goals = body.activeGoals.slice(0, 5).map((goal) => `${goal.title} (${goal.dueDate})`).join("; ");

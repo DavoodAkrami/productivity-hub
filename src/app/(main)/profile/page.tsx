@@ -110,7 +110,8 @@ const ProfilePage = () => {
                 }
             } catch (error) {
                 const message = error instanceof Error ? error.message : "AI feedback failed.";
-                setDailyFeedback(`AI feedback unavailable: ${message}`);
+                const shortMessage = message.length > 180 ? `${message.slice(0, 180)}...` : message;
+                setDailyFeedback(`AI feedback unavailable: ${shortMessage}`);
             } finally {
                 setFeedbackLoading(false);
             }
