@@ -52,10 +52,22 @@ export const signUpWithEmail = async (payload: SignUpPayload) => {
 
     const supabase = getSupabaseBrowserClient();
 
+    const redirectTo = (() => {
+        const configured =
+            process.env.NEXT_PUBLIC_DOMINE?.trim() ||
+            process.env.NEXT_PUBLIC_DOMAIN?.trim() ||
+            "";
+        const normalized = configured.replace(/\/+$/, "");
+        if (normalized) return `${normalized}/login`;
+        if (typeof window !== "undefined") return `${window.location.origin}/login`;
+        return undefined;
+    })();
+
     const { data, error } = await supabase.auth.signUp({
         email: payload.email.trim(),
         password: payload.password,
         options: {
+            emailRedirectTo: redirectTo,
             data: {
                 first_name: payload.name.trim(),
                 last_name: payload.lastName.trim(),
@@ -72,8 +84,16 @@ export const continueWithGoogle = async () => {
         throw new Error("Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
     }
     const supabase = getSupabaseBrowserClient();
-    const redirectTo =
-        typeof window !== "undefined" ? `${window.location.origin}/bookmarks` : undefined;
+    const redirectTo = (() => {
+        const configured =
+            process.env.NEXT_PUBLIC_DOMINE?.trim() ||
+            process.env.NEXT_PUBLIC_DOMAIN?.trim() ||
+            "";
+        const normalized = configured.replace(/\/+$/, "");
+        if (normalized) return `${normalized}/bookmarks`;
+        if (typeof window !== "undefined") return `${window.location.origin}/bookmarks`;
+        return undefined;
+    })();
 
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",

@@ -1,108 +1,142 @@
 # Productivity Hub
 
-A modern, feature-rich productivity application built with Next.js that helps you manage bookmarks, tasks, and interact with AI assistance.
+A Next.js productivity app that combines bookmarks, to-do management, notes, AI chat, and account/admin tools in one interface.
 
-🌐 **Live Website:** [productivity-hub.vercel.app](https://productivity-hub.vercel.app)
+## What This Project Includes
 
-## Features
+- Landing page, login, and signup flows
+- Supabase authentication (email/password + Google OAuth)
+- Main workspace pages:
+  - Bookmarks
+  - To-Do + Notes workspace
+  - AI assistant
+  - Profile (account, analytics, admin tools)
+- Notification system with variants and undo support
+- Admin management:
+  - View users
+  - Search by name/email
+  - Promote/demote admin
+  - Delete user accounts
+- Profile analytics:
+  - Bookmarks count
+  - Notes count
+  - Average tasks done per day
+  - Task completion chart by date range
 
-### 📚 Bookmarks Manager
-- Add, edit, and delete bookmarks
-- Store bookmarks locally in your browser
-- Clean, card-based interface for easy browsing
+## Tech Stack (Exact)
 
-### ✅ Todo List
-- Create tasks with titles, descriptions, priorities, labels, and due dates
-- Custom calendar date picker with year/month navigation
-- Filter tasks by priority, label, or date (today, this week, this month, past)
-- Sort tasks by priority or date
-- Mark tasks as completed with visual line-through styling
-- Toggle visibility of completed tasks
-- All data persisted in browser localStorage
+### Framework & Language
+- Next.js `15.5.9`
+- React `19.1.0`
+- TypeScript `^5`
 
-### 🤖 AI Assistant
-- Interactive chat interface powered by OpenAI
-- Function calling capabilities
+### State & Data
+- Redux Toolkit `^2.11.2`
+- React Redux `^9.2.0`
+- Supabase JS `^2.95.3`
+- Browser localStorage (cache/fallback in selected flows)
 
-## Technologies Used
+### AI
+- OpenAI SDK `^6.17.0`
 
-### Core Framework
-- **Next.js 15.5.2** - React framework for production
-- **React 19.1.0** - UI library
-- **TypeScript 5** - Type-safe JavaScript
+### UI & Styling
+- Tailwind CSS `^4`
+- Motion `^12.23.12`
+- Recharts `^3.7.0`
+- React Icons `^5.5.0`
+- clsx `^2.1.1`
 
-### Styling & UI
-- **Tailwind CSS 4** - Utility-first CSS framework
-- **Motion (Framer Motion) 12.23.12** - Animation library
-- **React Icons 5.5.0** - Icon library
-- **clsx 2.1.1** - Conditional className utility
-
-### Development Tools
-- **ESLint 9** - Code linting
-- **PostCSS** - CSS processing
-
-## Installation & Setup
-
-### Prerequisites
-- Node.js 18+ installed on your system
-- npm, yarn, pnpm, or bun package manager
-
-### Download & Install
-
-1. **Clone or download the repository**
-   ```bash
-   git clone <https://github.com/DavoodAkrami/productivity-hub.git>
-   cd productivity-hub
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   # or
-   yarn install
-   # or
-   pnpm install
-   ```
-
-3. **Set up environment variables** (if using AI features)
-   
-   Create a `.env.local` file in the root directory:
-   ```env
-   OPENAI_API_KEY=your_openai_api_key_here
-   OPEN_AI_BASE_URL:your_openai_base_url
-   ```
-
-4. **Run the development server**
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   # or
-   pnpm dev
-   ```
-
-5. **Open your browser**
-   
-   Navigate to [http://localhost:3000](http://localhost:3000) to see the application.
-
-### Build for Production
-
-```bash
-npm run build
-npm start
-```
+### Tooling
+- ESLint `^9`
+- eslint-config-next `15.5.2`
+- PostCSS via `@tailwindcss/postcss`
 
 ## Project Structure
 
-```
+```text
 src/
-├── app/
-│   ├── AI/              # AI chat interface
-│   ├── todolist/        # Todo list management
-│   ├── page.tsx         # Bookmarks page (home)
-│   └── layout.tsx       # Root layout
-├── components/          # Reusable UI components
-├── configs/            # Configuration files
-├── providers/         # React context providers
-└── utilities/         # Helper functions
+  app/
+    page.tsx                    # Landing page
+    login/page.tsx              # Login page
+    signup/page.tsx             # Signup page
+    (main)/
+      layout.tsx                # Main app layout + sidebar
+      bookmarks/page.tsx
+      todolist/page.tsx
+      AI/page.tsx
+      AI/layout.tsx
+      profile/page.tsx
+    api/
+      admin/users/route.ts
+      admin/users/[id]/route.ts
+      auth/delete-account/route.ts
+  components/
+  lib/
+    auth/
+    supabase/
+    undoManager.ts
+  store/
 ```
+
+## Environment Variables
+
+Create `.env` (or `.env.local`) in project root:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+OPENAI_API_KEY=...
+```
+
+Notes:
+- `SUPABASE_SERVICE_ROLE_KEY` is required for server-side admin APIs (`/api/admin/*`, delete account route).
+- Never expose service role key to the browser.
+
+## Setup
+
+1. Install dependencies
+
+```bash
+npm install
+```
+
+2. Run development server
+
+```bash
+npm run dev
+```
+
+3. Open app
+
+```text
+http://localhost:3000
+```
+
+## Build & Validate
+
+```bash
+npm run lint
+npm run build
+```
+
+## Supabase Requirements
+
+At minimum, this app expects:
+- Supabase Auth enabled (Email + Google if needed)
+- `profiles` table with a `role` field (`user` / `admin`) for admin gating
+- RLS and policies matching your security model
+
+Current app logic also reads/writes user-scoped data for:
+- bookmarks
+- todos
+- notes
+- labels
+- ai chats/messages
+
+## Important Security Notes
+
+- Keep `SUPABASE_SERVICE_ROLE_KEY` only on server environments.
+- Do not place service role values in client-side code.
+- Use HTTPS and production-safe redirect URLs for auth providers.
+
