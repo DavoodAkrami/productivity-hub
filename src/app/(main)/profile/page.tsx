@@ -4,7 +4,6 @@ import clsx from "clsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AnimatePresence, motion } from "motion/react";
 import Modal from "@/components/Modal";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { deleteAccountThunk, hydrateAuth, logoutThunk } from "@/store/authSlice";
@@ -22,7 +21,6 @@ type AdminUser = {
 };
 
 const ProfilePage = () => {
-    const FEEDBACK_CACHE_VERSION = "v2";
     const dispatch = useAppDispatch();
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<ProfileTab>("account");
@@ -33,13 +31,9 @@ const ProfilePage = () => {
     const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
     const [adminLoading, setAdminLoading] = useState<boolean>(false);
     const [hasAdminAccess, setHasAdminAccess] = useState<boolean>(false);
-    const [dailyFeedback, setDailyFeedback] = useState<string>("");
-    const [feedbackLoading, setFeedbackLoading] = useState<boolean>(false);
 
     const auth = useAppSelector((state) => state.auth);
     const analyticsState = useAppSelector((state) => state.profile);
-    const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
-    const userNameForFeedback = useMemo(() => auth.profile?.firstName?.trim() || "there", [auth.profile?.firstName]);
 
     useEffect(() => {
         void dispatch(hydrateAuth());
@@ -70,66 +64,6 @@ const ProfilePage = () => {
 
         void detectAdminAccess();
     }, [auth.session?.access_token]);
-
-    useEffect(() => {
-        if (!auth.checked || activeTab !== "insights" || analyticsState.status !== "succeeded") return;
-
-        const cacheKey = `daily-feedback-${FEEDBACK_CACHE_VERSION}-${auth.profile?.id ?? "anonymous"}-${todayKey}`;
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-            setDailyFeedback(cached);
-            return;
-        }
-
-        const generateFeedback = async () => {
-            setFeedbackLoading(true);
-            try {
-                const response = await fetch("/api/profile/feedback", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        name: userNameForFeedback,
-                        stats: {
-                            bookmarksCount: analyticsState.analytics.bookmarksCount,
-                            notesCount: analyticsState.analytics.notesCount,
-                            avgDonePerDay: analyticsState.analytics.avgDonePerDay,
-                            recentSeries: analyticsState.analytics.dailyTaskDone,
-                        },
-                        activeGoals: [],
-                    }),
-                });
-
-                const payload = await response.json().catch(() => ({}));
-                if (!response.ok) {
-                    throw new Error(payload?.error || "Failed to generate feedback.");
-                }
-                const text = String(payload.feedback || "").trim();
-                if (text) {
-                    setDailyFeedback(text);
-                    localStorage.setItem(cacheKey, text);
-                }
-            } catch (error) {
-                const message = error instanceof Error ? error.message : "AI feedback failed.";
-                const shortMessage = message.length > 180 ? `${message.slice(0, 180)}...` : message;
-                setDailyFeedback(`AI feedback unavailable: ${shortMessage}`);
-            } finally {
-                setFeedbackLoading(false);
-            }
-        };
-
-        void generateFeedback();
-    }, [
-        activeTab,
-        analyticsState.analytics.avgDonePerDay,
-        analyticsState.analytics.bookmarksCount,
-        analyticsState.analytics.dailyTaskDone,
-        analyticsState.analytics.notesCount,
-        analyticsState.status,
-        auth.checked,
-        auth.profile?.id,
-        todayKey,
-        userNameForFeedback,
-    ]);
 
     const fullName = useMemo(() => {
         const name = `${auth.profile?.firstName ?? ""} ${auth.profile?.lastName ?? ""}`.trim();
@@ -315,37 +249,7 @@ const ProfilePage = () => {
                     {activeTab === "insights" && (
                         <>
                             <h2 className="text-3xl font-extrabold">Insights</h2>
-                            <p className="mt-2 text-[var(--text-secondary)]">Your daily feedback and productivity snapshot.</p>
-
-                            <div className="mt-5 rounded-2xl border border-[var(--fill-primary)] bg-[var(--fill-primary)]/25 p-4">
-                                <p className="text-sm text-[var(--text-secondary)]">AI Feedback for Today</p>
-                                <AnimatePresence mode="wait">
-                                    {feedbackLoading ? (
-                                        <motion.div
-                                            key="feedback-loading"
-                                            initial={{ opacity: 0, y: 8 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -8 }}
-                                            className="mt-3 space-y-2"
-                                        >
-                                            <span className="block h-3 w-full rounded-full bg-[var(--fill-primary)]/70 animate-pulse" />
-                                            <span className="block h-3 w-[92%] rounded-full bg-[var(--fill-primary)]/70 animate-pulse" />
-                                            <span className="block h-3 w-[78%] rounded-full bg-[var(--fill-primary)]/70 animate-pulse" />
-                                        </motion.div>
-                                    ) : (
-                                        <motion.p
-                                            key={dailyFeedback || "feedback-ready"}
-                                            initial={{ opacity: 0, y: 8 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -8 }}
-                                            transition={{ duration: 0.35, ease: "easeOut" }}
-                                            className="mt-3 text-sm leading-6 text-[var(--text-primary)]"
-                                        >
-                                            {dailyFeedback || "Feedback will appear here as soon as your data is ready."}
-                                        </motion.p>
-                                    )}
-                                </AnimatePresence>
-                            </div>
+                            <p className="mt-2 text-[var(--text-secondary)]">Your productivity snapshot.</p>
 
                             <div className="mt-4 flex gap-2 flex-wrap">
                                 {rangeOptions.map((option) => (

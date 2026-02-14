@@ -29,6 +29,18 @@ export type NoteRow = {
     updated_at: string;
 };
 
+export type CalendarEventRow = {
+    id: string;
+    title: string;
+    description: string;
+    color: string;
+    event_date: string;
+    start_time: string | null;
+    end_time: string | null;
+    created_at: string;
+    updated_at: string;
+};
+
 export type LabelRow = {
     id: string;
     name: string;
@@ -155,6 +167,43 @@ export const replaceNotesForCurrentUser = async (notes: NoteRow[]) => {
         updated_at: note.updated_at,
     }));
     const { error: insertError } = await supabase.from("notes").insert(payload);
+    if (insertError) throw new Error(insertError.message);
+};
+
+export const fetchCalendarEventsForCurrentUser = async (): Promise<CalendarEventRow[]> => {
+    const userId = await getUserId();
+    if (!userId) return [];
+    const supabase = getSupabaseBrowserClient();
+    const { data, error } = await supabase
+        .from("calendar_events")
+        .select("id,title,description,color,event_date,start_time,end_time,created_at,updated_at")
+        .eq("user_id", userId)
+        .order("event_date", { ascending: true })
+        .order("start_time", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data ?? []) as CalendarEventRow[];
+};
+
+export const replaceCalendarEventsForCurrentUser = async (events: CalendarEventRow[]) => {
+    const userId = await getUserId();
+    if (!userId) return;
+    const supabase = getSupabaseBrowserClient();
+    const { error: deleteError } = await supabase.from("calendar_events").delete().eq("user_id", userId);
+    if (deleteError) throw new Error(deleteError.message);
+    if (events.length === 0) return;
+    const payload = events.map((event) => ({
+        id: event.id,
+        user_id: userId,
+        title: event.title,
+        description: event.description,
+        color: event.color,
+        event_date: event.event_date,
+        start_time: event.start_time,
+        end_time: event.end_time,
+        created_at: event.created_at,
+        updated_at: event.updated_at,
+    }));
+    const { error: insertError } = await supabase.from("calendar_events").insert(payload);
     if (insertError) throw new Error(insertError.message);
 };
 

@@ -8,11 +8,14 @@ import {
     getCurrentSession,
     getCurrentUserProfile,
     loginWithEmail,
+    resendSignUpCode,
     logoutUser,
     signUpWithEmail,
+    verifyEmailCode,
     type CurrentUserProfile,
     type LoginPayload,
     type SignUpPayload,
+    type VerifyEmailCodePayload,
 } from "@/lib/auth/supabaseAuth";
 
 type AuthStatus = "idle" | "loading" | "succeeded" | "failed";
@@ -75,6 +78,31 @@ export const signUpThunk = createAsyncThunk(
             };
         } catch (error) {
             return rejectWithValue(error instanceof Error ? error.message : "Signup failed");
+        }
+    }
+);
+
+export const verifyEmailCodeThunk = createAsyncThunk(
+    "auth/verifyEmailCode",
+    async (payload: VerifyEmailCodePayload, { rejectWithValue }) => {
+        try {
+            const result = await verifyEmailCode(payload);
+            const profile = result.session ? await getCurrentUserProfile() : null;
+            return { session: result.session ?? null, profile };
+        } catch (error) {
+            return rejectWithValue(error instanceof Error ? error.message : "Verification failed");
+        }
+    }
+);
+
+export const resendSignUpCodeThunk = createAsyncThunk(
+    "auth/resendSignUpCode",
+    async (email: string, { rejectWithValue }) => {
+        try {
+            await resendSignUpCode({ email });
+            return true;
+        } catch (error) {
+            return rejectWithValue(error instanceof Error ? error.message : "Failed to resend code");
         }
     }
 );
@@ -169,6 +197,31 @@ const authSlice = createSlice({
             .addCase(signUpThunk.rejected, (state, action) => {
                 state.status = "failed";
                 state.error = (action.payload as string) || "Signup failed";
+            })
+            .addCase(verifyEmailCodeThunk.pending, (state) => {
+                state.status = "loading";
+                state.error = null;
+            })
+            .addCase(verifyEmailCodeThunk.fulfilled, (state, action) => {
+                state.status = "succeeded";
+                state.session = action.payload.session;
+                state.profile = action.payload.profile;
+                state.checked = true;
+            })
+            .addCase(verifyEmailCodeThunk.rejected, (state, action) => {
+                state.status = "failed";
+                state.error = (action.payload as string) || "Verification failed";
+            })
+            .addCase(resendSignUpCodeThunk.pending, (state) => {
+                state.status = "loading";
+                state.error = null;
+            })
+            .addCase(resendSignUpCodeThunk.fulfilled, (state) => {
+                state.status = "succeeded";
+            })
+            .addCase(resendSignUpCodeThunk.rejected, (state, action) => {
+                state.status = "failed";
+                state.error = (action.payload as string) || "Failed to resend code";
             })
             .addCase(googleSignInThunk.pending, (state) => {
                 state.status = "loading";

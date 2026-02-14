@@ -499,7 +499,7 @@ const ToDoList = () => {
     }
 
     return (
-        <div className="h-screen relative select-none pt-[9vh]">
+        <div className="h-screen relative select-none pt-[9vh] overflow-hidden flex flex-col">
             <Notodolists
                 key={notification.key}
                 title={notification.title}

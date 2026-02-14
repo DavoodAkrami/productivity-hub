@@ -14,6 +14,15 @@ export type SignUpPayload = {
     confirmPassword: string;
 };
 
+export type VerifyEmailCodePayload = {
+    email: string;
+    code: string;
+};
+
+export type ResendSignUpCodePayload = {
+    email: string;
+};
+
 export const validateSignUpPayload = (payload: SignUpPayload) => {
     if (!payload.name.trim()) return "First name is required.";
     if (!payload.lastName.trim()) return "Last name is required.";
@@ -83,8 +92,54 @@ export const signUpWithEmail = async (payload: SignUpPayload) => {
         },
     });
 
+    if (error) {
+        const normalized = error.message.toLowerCase();
+        if (
+            normalized.includes("already registered") ||
+            normalized.includes("user already exists") ||
+            normalized.includes("already exists")
+        ) {
+            throw new Error("An account with this email already exists.");
+        }
+        throw new Error(error.message);
+    }
+    return data;
+};
+
+export const verifyEmailCode = async (payload: VerifyEmailCodePayload) => {
+    if (!isSupabaseConfigured()) {
+        throw new Error("Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+    }
+
+    const email = payload.email.trim();
+    const code = payload.code.trim();
+    if (!email) throw new Error("Email is required.");
+    if (!code) throw new Error("Verification code is required.");
+
+    const supabase = getSupabaseBrowserClient();
+    const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: code,
+        type: "signup",
+    });
     if (error) throw new Error(error.message);
     return data;
+};
+
+export const resendSignUpCode = async (payload: ResendSignUpCodePayload) => {
+    if (!isSupabaseConfigured()) {
+        throw new Error("Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+    }
+    const email = payload.email.trim();
+    if (!email) throw new Error("Email is required.");
+
+    const supabase = getSupabaseBrowserClient();
+    const { error } = await supabase.auth.resend({
+        type: "signup",
+        email,
+    });
+    if (error) throw new Error(error.message);
+    return true;
 };
 
 export const continueWithGoogle = async () => {

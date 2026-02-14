@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import openai from "@/configs/openAi";
+import { getOpenAIClient } from "@/configs/openAi";
 import Button from "@/components/Buttons";
 import Notodolists from "@/components/Notodolists";
 import { AnimatePresence, motion } from "motion/react";
@@ -338,7 +338,7 @@ const AIWorkspace: React.FC<{ routeChatId?: string | null }> = ({ routeChatId = 
             });
 
             abortControllerRef.current = new AbortController();
-            const stream = await openai.chat.completions.create(
+            const stream = await getOpenAIClient().chat.completions.create(
                 {
                     model: "gpt-5-nano",
                     messages: shortTermMemory,
